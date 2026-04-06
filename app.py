@@ -2,6 +2,12 @@ import os
 import sqlite3
 import math
 import json
+import time
+import threading
+import re
+import difflib
+import urllib.parse
+import urllib.request
 from collections import defaultdict
 from datetime import datetime, timezone
 
@@ -22,6 +28,10 @@ STREETLIGHT_DATA_PATH = os.path.join(DATA_DIR, 'mumbai_street_lights.csv')
 ACCIDENT_DATA_PATH = os.path.join(DATA_DIR, 'mumbai_accidents.csv')
 WARD_BOUNDARY_PATH = os.path.join(DATA_DIR, 'mumbai_ward_boundaries.geojson')
 ROAD_NETWORK_PATH = os.path.join(DATA_DIR, 'mumbai_road_network.geojson')
+MATERIALIZED_STATS_PATH = os.path.join(BASE_DIR, 'database', 'materialized_stats.json')
+REFRESH_INTERVAL_SECONDS = max(120, int(os.environ.get('NNCITY_REFRESH_SECONDS', '900')))
+NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search'
+GEOCODE_CACHE_TTL_SECONDS = 900
 
 app = Flask(__name__)
 app.secret_key = os.urandom(32)
@@ -60,6 +70,82 @@ MUMBAI_ZONES = [
 
 # Quick lookup by name (case-insensitive)
 ZONE_INDEX = {z['name'].lower(): z for z in MUMBAI_ZONES}
+
+# Human-friendly aliases to support location-first inputs and multilingual voice commands.
+WARD_LOCATION_ALIASES = {
+    'A': ['colaba', 'fort', 'churchgate', 'cuffe parade', 'nariman point'],
+    'B': ['masjid', 'dongri', 'bhuleshwar', 'null bazaar'],
+    'C': ['marine lines', 'chira bazar', 'kalbadevi'],
+    'D': ['grant road', 'tardeo', 'girgaon'],
+    'E': ['byculla', 'mumbai central', 'nagpada'],
+    'F/N': ['sion', 'matunga east', 'wadala east'],
+    'F/S': ['dadar', 'prabhadevi', 'matunga'],
+    'G/N': ['mahim', 'dharavi', 'sion west'],
+    'G/S': ['elphinstone', 'lower parel', 'worli naka'],
+    'H/W': ['bandra west', 'khar west', 'pali hill'],
+    'H/E': ['bandra east', 'kalina', 'vakola'],
+    'K/W': ['andheri west', 'lokhandwala', 'oshiwara', 'versova'],
+    'K/E': ['andheri east', 'sakinaka', 'marol', 'chakala'],
+    'L': ['kurla', 'santacruz chembur link road', 'vidyavihar'],
+    'M/W': ['chembur', 'tilak nagar', 'rcf'],
+    'M/E': ['govandi', 'deonar', 'mankhurd'],
+    'N': ['ghatkopar', 'pant nagar', 'vikhroli west'],
+    'P/N': ['malad', 'malad west', 'mindspace'],
+    'P/S': ['goregaon', 'goregaon west', 'aarey'],
+    'R/N': ['borivali', 'dahisar', 'eksar'],
+    'R/C': ['kandivali', 'charkop', 'thakur village'],
+    'R/S': ['borivali east', 'magathane', 'national park'],
+    'S': ['bhandup', 'powai', 'kanjurmarg'],
+    'T': ['mulund', 'nahur'],
+}
+
+WARD_PRIMARY_DISPLAY = {
+    'A': 'Colaba',
+    'B': 'Dongri',
+    'C': 'Marine Lines',
+    'D': 'Grant Road',
+    'E': 'Byculla',
+    'F/N': 'Sion',
+    'F/S': 'Dadar',
+    'G/N': 'Mahim',
+    'G/S': 'Lower Parel',
+    'H/W': 'Bandra West',
+    'H/E': 'Bandra East',
+    'K/W': 'Andheri West',
+    'K/E': 'Andheri East',
+    'L': 'Kurla',
+    'M/W': 'Chembur',
+    'M/E': 'Govandi',
+    'N': 'Ghatkopar',
+    'P/N': 'Malad West',
+    'P/S': 'Goregaon',
+    'R/N': 'Borivali',
+    'R/C': 'Kandivali',
+    'R/S': 'Borivali East',
+    'S': 'Powai',
+    'T': 'Mulund',
+}
+
+WARD_VOICE_ALIASES = {
+    'A': ['ward a', 'a ward', 'ward ay', 'ward ek', 'ward eka', 'ward one'],
+    'B': ['ward b', 'b ward', 'ward bee', 'ward do', 'ward two'],
+    'C': ['ward c', 'c ward', 'ward see', 'ward teen', 'ward three'],
+    'D': ['ward d', 'd ward', 'ward dee', 'ward char', 'ward four'],
+    'E': ['ward e', 'e ward', 'ward ee', 'ward paanch', 'ward five'],
+    'F/N': ['ward fn', 'ward f n', 'ward f north', 'f north'],
+    'F/S': ['ward fs', 'ward f s', 'ward f south', 'f south'],
+    'G/N': ['ward gn', 'ward g n', 'ward g north', 'g north'],
+    'G/S': ['ward gs', 'ward g s', 'ward g south', 'g south'],
+    'H/W': ['ward hw', 'ward h w', 'ward h west', 'h west'],
+    'H/E': ['ward he', 'ward h e', 'ward h east', 'h east'],
+    'K/W': ['ward kw', 'ward k w', 'ward k west', 'k west'],
+    'K/E': ['ward ke', 'ward k e', 'ward k east', 'k east'],
+    'M/W': ['ward mw', 'ward m w', 'ward m west', 'm west'],
+    'M/E': ['ward me', 'ward m e', 'ward m east', 'm east'],
+    'R/N': ['ward rn', 'ward r n', 'ward r north', 'r north'],
+    'R/C': ['ward rc', 'ward r c', 'ward r central', 'r central'],
+    'R/S': ['ward rs', 'ward r s', 'ward r south', 'r south'],
+}
 
 # Bus routes connecting zones (realistic Mumbai bus/metro connections)
 MUMBAI_TRANSPORT = [
@@ -103,14 +189,21 @@ CRIME_HOURLY_COUNTS = [0] * 24
 CRIME_BY_WARD = {}
 CRIME_HOURLY_BY_WARD = {}
 CRIME_MONTHLY_COUNTS = []
+CRIME_MONTHLY_BY_WARD = {}
 LIGHTS_BY_WARD = {}
 LIGHTS_STATUS_COUNTS = {}
 ACCIDENTS_BY_WARD = {}
 ACCIDENT_MONTHLY_COUNTS = []
+ACCIDENT_MONTHLY_BY_WARD = {}
 ROADS_BY_WARD = defaultdict(list)
 ROAD_RISK_BY_WARD = {}
 ROAD_SEGMENT_COUNT = 0
 WARD_GEOMETRIES = {}
+LAST_REFRESHED_AT = None
+MATERIALIZED_SOURCE = 'live'
+DATA_LOCK = threading.RLock()
+REFRESH_THREAD = None
+GEOCODE_CACHE = {}
 
 
 def clamp(v, lo, hi):
@@ -139,6 +232,228 @@ def normalize_ward(value):
     return str(value or '').strip().upper()
 
 
+def normalize_text(value):
+    txt = str(value or '').lower()
+    txt = txt.replace('&', ' and ')
+    txt = re.sub(r'[^a-z0-9/ ]+', ' ', txt)
+    txt = re.sub(r'\s+', ' ', txt).strip()
+    return txt
+
+
+def ward_aliases(ward_id):
+    ward_key = normalize_ward(ward_id)
+    out = set(WARD_LOCATION_ALIASES.get(ward_key, []))
+    out.update(WARD_VOICE_ALIASES.get(ward_key, []))
+    out.add(f'ward {ward_key.lower()}')
+    out.add(ward_key.lower())
+    out.add(ward_key.lower().replace('/', ' '))
+    return sorted(out)
+
+
+def pretty_location_name(raw):
+    txt = str(raw or '').strip().replace('/', ' / ')
+    txt = re.sub(r'\s+', ' ', txt)
+    return txt.title().replace(' / ', '/').replace('Sc', 'SC')
+
+
+def _infer_zone_display_name(zone):
+    ward_id = normalize_ward(zone.get('ward_id'))
+    if ward_id:
+        preferred_label = WARD_PRIMARY_DISPLAY.get(ward_id)
+        if preferred_label:
+            return pretty_location_name(preferred_label)
+
+    preferred = str(zone.get('display_name', '')).strip()
+    if preferred and not preferred.lower().startswith('ward '):
+        return pretty_location_name(preferred)
+
+    aliases = zone.get('aliases') or []
+    for alias in aliases:
+        alias_txt = str(alias or '').strip()
+        if not alias_txt:
+            continue
+        alias_l = alias_txt.lower()
+        if 'ward' in alias_l:
+            continue
+        if re.fullmatch(r'[a-z]/?[a-z]?', alias_l):
+            continue
+        return pretty_location_name(alias_txt)
+
+    if ward_id:
+        ward_alias_list = WARD_LOCATION_ALIASES.get(ward_id, [])
+        if ward_alias_list:
+            return pretty_location_name(ward_alias_list[0])
+        return f'Area {ward_id}'
+
+    zone_name = str(zone.get('name', '')).strip()
+    if zone_name:
+        return pretty_location_name(zone_name)
+    return 'Unknown Area'
+
+
+def normalize_zone_metadata():
+    for zone in MUMBAI_ZONES:
+        ward_id = normalize_ward(zone.get('ward_id'))
+        if ward_id:
+            zone['ward_id'] = ward_id
+            existing_aliases = zone.get('aliases') or []
+            if not existing_aliases:
+                zone['aliases'] = ward_aliases(ward_id)
+        if 'name' not in zone or not str(zone.get('name', '')).strip():
+            zone['name'] = f"Ward {ward_id}" if ward_id else 'Unknown Zone'
+        zone['display_name'] = _infer_zone_display_name(zone)
+
+
+def _cache_get_geocode(key):
+    entry = GEOCODE_CACHE.get(key)
+    if not entry:
+        return None
+    if time.time() - entry['ts'] > GEOCODE_CACHE_TTL_SECONDS:
+        GEOCODE_CACHE.pop(key, None)
+        return None
+    return entry.get('results', [])
+
+
+def _cache_set_geocode(key, results):
+    GEOCODE_CACHE[key] = {'ts': time.time(), 'results': results}
+
+
+def geocode_landmark(query, limit=5):
+    """Resolve free-form landmarks using Nominatim (Mumbai bounded) with local cache."""
+    q = normalize_text(query)
+    if not q:
+        return []
+
+    cache_key = f"{q}|{int(limit)}"
+    cached = _cache_get_geocode(cache_key)
+    if cached is not None:
+        return cached
+
+    params = {
+        'q': query,
+        'format': 'jsonv2',
+        'limit': max(1, min(10, int(limit))),
+        'addressdetails': 0,
+        'countrycodes': 'in',
+        # Rough Mumbai bbox to keep results relevant.
+        'viewbox': '72.73,19.30,73.03,18.86',
+        'bounded': 1,
+    }
+
+    url = f"{NOMINATIM_URL}?{urllib.parse.urlencode(params)}"
+    req = urllib.request.Request(
+        url,
+        headers={
+            'User-Agent': 'NuitNoire/1.0 (Mumbai safety routing app)',
+            'Accept': 'application/json',
+        },
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=3.5) as resp:
+            payload = json.loads(resp.read().decode('utf-8'))
+    except Exception:
+        _cache_set_geocode(cache_key, [])
+        return []
+
+    out = []
+    for item in payload if isinstance(payload, list) else []:
+        lat = to_float(item.get('lat'), None)
+        lng = to_float(item.get('lon'), None)
+        if lat is None or lng is None:
+            continue
+        out.append({
+            'lat': lat,
+            'lng': lng,
+            'display_name': str(item.get('display_name', '')).strip(),
+            'importance': to_float(item.get('importance'), 0),
+        })
+
+    _cache_set_geocode(cache_key, out)
+    return out
+
+
+def _zone_search_terms(zone):
+    terms = set()
+    name = str(zone.get('name', '')).strip().lower()
+    ward_id = normalize_ward(zone.get('ward_id'))
+    if name:
+        terms.add(name)
+    if ward_id:
+        terms.update(ward_aliases(ward_id))
+    return {normalize_text(t) for t in terms if t}
+
+
+def resolve_zone_by_query(query):
+    text = normalize_text(query)
+    if not text:
+        return None
+
+    direct = find_zone(text)
+    if direct:
+        return direct
+
+    containment_hits = []
+    matches = []
+    for z in MUMBAI_ZONES:
+        terms = _zone_search_terms(z)
+        if text in terms:
+            return z
+        meaningful_terms = [
+            t for t in terms
+            if len(t) >= 4 and not t.startswith('ward ') and not re.fullmatch(r'[a-z]/?[a-z]?', t)
+        ]
+
+        for t in meaningful_terms:
+            if t in text:
+                containment_hits.append((len(t), z))
+                break
+
+        term_score = max([difflib.SequenceMatcher(None, text, t).ratio() for t in meaningful_terms] + [0.0])
+
+        # Avoid over-eager fuzzy hits for unknown landmarks.
+        threshold = 0.76 if len(text) <= 6 else 0.82
+        if term_score >= threshold:
+            matches.append((term_score, z))
+
+    if containment_hits:
+        containment_hits.sort(key=lambda x: x[0], reverse=True)
+        return containment_hits[0][1]
+
+    if not matches:
+        return None
+    matches.sort(key=lambda x: x[0], reverse=True)
+    return matches[0][1]
+
+
+def resolve_zone_input(zone_name=None, location_name=None, lat=None, lng=None):
+    if lat is not None and lng is not None:
+        return find_nearest_zone(float(lat), float(lng))
+
+    raw = location_name if location_name else zone_name
+    if raw is None:
+        return None
+
+    query = str(raw).strip()
+    if not query:
+        return None
+
+    coord_match = re.match(r'^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$', query)
+    if coord_match:
+        return find_nearest_zone(float(coord_match.group(1)), float(coord_match.group(2)))
+
+    zone = resolve_zone_by_query(query)
+    if zone:
+        return zone
+
+    # Progressive fallback: external geocoding + nearest ward mapping.
+    geo = geocode_landmark(query, limit=1)
+    if geo:
+        return find_nearest_zone(geo[0]['lat'], geo[0]['lng'])
+
+    return None
+
+
 def score_to_risk(score):
     if score >= 67:
         return 'high'
@@ -149,15 +464,18 @@ def score_to_risk(score):
 
 def load_csv_aggregates():
     global CRIME_HOURLY_COUNTS, CRIME_BY_WARD, CRIME_HOURLY_BY_WARD, CRIME_MONTHLY_COUNTS
-    global LIGHTS_BY_WARD, LIGHTS_STATUS_COUNTS, ACCIDENTS_BY_WARD, ACCIDENT_MONTHLY_COUNTS
+    global CRIME_MONTHLY_BY_WARD, LIGHTS_BY_WARD, LIGHTS_STATUS_COUNTS
+    global ACCIDENTS_BY_WARD, ACCIDENT_MONTHLY_COUNTS, ACCIDENT_MONTHLY_BY_WARD
 
     CRIME_BY_WARD = {}
     CRIME_HOURLY_BY_WARD = {}
     CRIME_MONTHLY_COUNTS = [0] * 12
+    CRIME_MONTHLY_BY_WARD = {}
     LIGHTS_BY_WARD = {}
     LIGHTS_STATUS_COUNTS = {}
     ACCIDENTS_BY_WARD = {}
     ACCIDENT_MONTHLY_COUNTS = [0] * 12
+    ACCIDENT_MONTHLY_BY_WARD = {}
     CRIME_HOURLY_COUNTS = [0] * 24
 
     # Crime data: core risk signal
@@ -187,6 +505,12 @@ def load_csv_aggregates():
         crime['month_num'] = pd.to_numeric(crime.get('month', 1), errors='coerce').fillna(1).clip(1, 12).astype(int)
         month_counts = crime.groupby('month_num').size()
         CRIME_MONTHLY_COUNTS = [int(month_counts.get(m, 0)) for m in range(1, 13)]
+
+        crime_monthly_ward = crime.groupby(['ward_norm', 'month_num']).size().unstack(fill_value=0)
+        CRIME_MONTHLY_BY_WARD = {
+            ward: [int(crime_monthly_ward.loc[ward].get(m, 0)) for m in range(1, 13)]
+            for ward in crime_monthly_ward.index
+        }
 
     # Streetlight data: lighting-risk correlation
     if os.path.exists(STREETLIGHT_DATA_PATH):
@@ -228,6 +552,12 @@ def load_csv_aggregates():
         accidents['month_num'] = pd.to_numeric(accidents.get('month', 1), errors='coerce').fillna(1).clip(1, 12).astype(int)
         acc_month_counts = accidents.groupby('month_num').size()
         ACCIDENT_MONTHLY_COUNTS = [int(acc_month_counts.get(m, 0)) for m in range(1, 13)]
+
+        acc_monthly_ward = accidents.groupby(['ward_norm', 'month_num']).size().unstack(fill_value=0)
+        ACCIDENT_MONTHLY_BY_WARD = {
+            ward: [int(acc_monthly_ward.loc[ward].get(m, 0)) for m in range(1, 13)]
+            for ward in acc_monthly_ward.index
+        }
 
 
 def load_road_aggregates():
@@ -353,6 +683,7 @@ def build_zones_from_ward_geojson():
             'lng': round(lng, 6),
             'risk': risk,
             'name': f'Ward {ward_id}',
+            'display_name': pretty_location_name((WARD_LOCATION_ALIASES.get(ward_id, [''])[0]) or f'Area {ward_id}'),
             'ward_id': ward_id,
             'score': score,
             'area': str(props.get('zone', 'urban')).strip().lower() or 'urban',
@@ -368,22 +699,136 @@ def build_zones_from_ward_geojson():
             'monthly_crime_rate_per_1000': to_float(props.get('monthly_crime_rate_per_1000'), 0),
             'monthly_accidents_per_km2': to_float(props.get('monthly_accidents_per_km2'), 0),
             'night_crime_ratio': to_float(props.get('night_crime_ratio'), 0),
+            'aliases': ward_aliases(ward_id),
         })
 
     if zones:
+        # Re-balance score bands per refresh so map is not visually collapsed into one class.
+        ranked = sorted(zones, key=lambda z: z['score'])
+        n = len(ranked)
+        low_cut = max(1, n // 3)
+        med_cut = max(low_cut + 1, (2 * n) // 3)
+        for i, z in enumerate(ranked):
+            if i < low_cut:
+                z['risk'] = 'low'
+            elif i < med_cut:
+                z['risk'] = 'medium'
+            else:
+                z['risk'] = 'high'
+
         MUMBAI_ZONES[:] = zones
+        normalize_zone_metadata()
         ZONE_INDEX.clear()
         ZONE_INDEX.update({z['name'].lower(): z for z in MUMBAI_ZONES})
 
 
 def load_city_datasets():
+    global LAST_REFRESHED_AT, MATERIALIZED_SOURCE
     try:
-        load_csv_aggregates()
-        load_road_aggregates()
-        build_zones_from_ward_geojson()
+        with DATA_LOCK:
+            load_csv_aggregates()
+            load_road_aggregates()
+            build_zones_from_ward_geojson()
+            LAST_REFRESHED_AT = datetime.now(timezone.utc).isoformat()
+            MATERIALIZED_SOURCE = 'live'
+            save_materialized_stats()
         print(f"[data] Loaded dataset-driven wards: {len(MUMBAI_ZONES)} zones")
     except Exception as exc:
         print(f"[warn] Failed dataset alignment, using fallback static zones: {exc}")
+
+
+def build_materialized_payload():
+    return {
+        'meta': {
+            'generated_at': LAST_REFRESHED_AT,
+            'zones': len(MUMBAI_ZONES),
+            'road_segments': ROAD_SEGMENT_COUNT,
+        },
+        'zones': MUMBAI_ZONES,
+        'ward_geometries': WARD_GEOMETRIES,
+        'crime_hourly_counts': CRIME_HOURLY_COUNTS,
+        'crime_by_ward': CRIME_BY_WARD,
+        'crime_hourly_by_ward': CRIME_HOURLY_BY_WARD,
+        'crime_monthly_counts': CRIME_MONTHLY_COUNTS,
+        'crime_monthly_by_ward': CRIME_MONTHLY_BY_WARD,
+        'lights_by_ward': LIGHTS_BY_WARD,
+        'lights_status_counts': LIGHTS_STATUS_COUNTS,
+        'accidents_by_ward': ACCIDENTS_BY_WARD,
+        'accident_monthly_counts': ACCIDENT_MONTHLY_COUNTS,
+        'accident_monthly_by_ward': ACCIDENT_MONTHLY_BY_WARD,
+        'roads_by_ward': dict(ROADS_BY_WARD),
+        'road_risk_by_ward': ROAD_RISK_BY_WARD,
+        'road_segment_count': ROAD_SEGMENT_COUNT,
+    }
+
+
+def apply_materialized_payload(payload):
+    global MUMBAI_ZONES, ZONE_INDEX, WARD_GEOMETRIES
+    global CRIME_HOURLY_COUNTS, CRIME_BY_WARD, CRIME_HOURLY_BY_WARD, CRIME_MONTHLY_COUNTS, CRIME_MONTHLY_BY_WARD
+    global LIGHTS_BY_WARD, LIGHTS_STATUS_COUNTS
+    global ACCIDENTS_BY_WARD, ACCIDENT_MONTHLY_COUNTS, ACCIDENT_MONTHLY_BY_WARD
+    global ROADS_BY_WARD, ROAD_RISK_BY_WARD, ROAD_SEGMENT_COUNT, LAST_REFRESHED_AT, MATERIALIZED_SOURCE
+
+    MUMBAI_ZONES[:] = payload.get('zones', MUMBAI_ZONES)
+    normalize_zone_metadata()
+    ZONE_INDEX.clear()
+    ZONE_INDEX.update({z['name'].lower(): z for z in MUMBAI_ZONES})
+
+    WARD_GEOMETRIES = payload.get('ward_geometries', {}) or {}
+    CRIME_HOURLY_COUNTS = payload.get('crime_hourly_counts', [0] * 24)
+    CRIME_BY_WARD = payload.get('crime_by_ward', {}) or {}
+    CRIME_HOURLY_BY_WARD = payload.get('crime_hourly_by_ward', {}) or {}
+    CRIME_MONTHLY_COUNTS = payload.get('crime_monthly_counts', [0] * 12)
+    CRIME_MONTHLY_BY_WARD = payload.get('crime_monthly_by_ward', {}) or {}
+    LIGHTS_BY_WARD = payload.get('lights_by_ward', {}) or {}
+    LIGHTS_STATUS_COUNTS = payload.get('lights_status_counts', {}) or {}
+    ACCIDENTS_BY_WARD = payload.get('accidents_by_ward', {}) or {}
+    ACCIDENT_MONTHLY_COUNTS = payload.get('accident_monthly_counts', [0] * 12)
+    ACCIDENT_MONTHLY_BY_WARD = payload.get('accident_monthly_by_ward', {}) or {}
+    ROADS_BY_WARD = defaultdict(list, payload.get('roads_by_ward', {}) or {})
+    ROAD_RISK_BY_WARD = payload.get('road_risk_by_ward', {}) or {}
+    ROAD_SEGMENT_COUNT = to_int(payload.get('road_segment_count', 0), 0)
+
+    LAST_REFRESHED_AT = (payload.get('meta', {}) or {}).get('generated_at')
+    MATERIALIZED_SOURCE = 'cache'
+
+
+def save_materialized_stats():
+    try:
+        os.makedirs(os.path.dirname(MATERIALIZED_STATS_PATH), exist_ok=True)
+        with open(MATERIALIZED_STATS_PATH, 'w', encoding='utf-8') as f:
+            json.dump(build_materialized_payload(), f)
+    except Exception as exc:
+        print(f"[warn] Could not save materialized stats: {exc}")
+
+
+def load_materialized_stats():
+    if not os.path.exists(MATERIALIZED_STATS_PATH):
+        return False
+    try:
+        with open(MATERIALIZED_STATS_PATH, 'r', encoding='utf-8') as f:
+            payload = json.load(f)
+        with DATA_LOCK:
+            apply_materialized_payload(payload)
+        print(f"[cache] Loaded materialized stats for {len(MUMBAI_ZONES)} zones")
+        return True
+    except Exception as exc:
+        print(f"[warn] Could not load materialized stats: {exc}")
+        return False
+
+
+def refresh_job_loop():
+    while True:
+        time.sleep(REFRESH_INTERVAL_SECONDS)
+        load_city_datasets()
+
+
+def start_background_refresh_job():
+    global REFRESH_THREAD
+    if REFRESH_THREAD and REFRESH_THREAD.is_alive():
+        return
+    REFRESH_THREAD = threading.Thread(target=refresh_job_loop, name='nuit-refresh', daemon=True)
+    REFRESH_THREAD.start()
 
 # ── Database ────────────────────────────────────────────────────────────────
 
@@ -426,7 +871,11 @@ model = None
 def load_model():
     global model
     if os.path.exists(MODEL_PATH):
-        model = joblib.load(MODEL_PATH)
+        try:
+            model = joblib.load(MODEL_PATH)
+        except Exception as exc:
+            model = None
+            print(f"[warn] Could not load model at {MODEL_PATH}: {exc}")
     else:
         print(f"[warn] Model not found at {MODEL_PATH} — run model/train_model.py")
 
@@ -498,6 +947,10 @@ def predict():
 def analytics():
     return render_template('analytics.html')
 
+@app.route('/ward-intelligence')
+def ward_intelligence():
+    return render_template('ward_intelligence.html')
+
 @app.route('/report')
 def report():
     return render_template('report.html')
@@ -510,8 +963,94 @@ def about():
 # ── API ─────────────────────────────────────────────────────────────────────
 
 def find_zone(name):
-    """Look up a zone by name (case-insensitive)."""
-    return ZONE_INDEX.get(name.strip().lower())
+    """Look up a zone by internal name, display name, alias, or free-form text."""
+    query = str(name or '').strip()
+    if not query:
+        return None
+
+    by_internal = ZONE_INDEX.get(query.lower())
+    if by_internal:
+        return by_internal
+
+    for z in MUMBAI_ZONES:
+        if normalize_text(z.get('display_name', '')) == normalize_text(query):
+            return z
+        aliases = z.get('aliases') or []
+        if any(normalize_text(a) == normalize_text(query) for a in aliases):
+            return z
+
+    return resolve_zone_input(zone_name=query, location_name=query)
+
+
+def _min_max(values, default_min=0.0, default_max=1.0):
+    nums = [to_float(v, None) for v in values]
+    nums = [v for v in nums if v is not None]
+    if not nums:
+        return default_min, default_max
+    return min(nums), max(nums)
+
+
+def _norm(value, lo, hi, default=0.5):
+    v = to_float(value, None)
+    if v is None:
+        return default
+    if hi <= lo:
+        return default
+    return clamp((v - lo) / (hi - lo), 0, 1)
+
+
+def calibrated_zone_risk(zone, time_hour):
+    """Build a stable, zone-differentiated risk score for zone predictions."""
+    lighting = clamp(to_float(zone.get('lighting'), 0.5), 0, 1)
+    traffic = clamp(to_float(zone.get('traffic'), 0.5), 0, 1)
+    base_score = clamp(to_float(zone.get('score'), 50), 0, 100)
+
+    all_scores = [to_float(z.get('score'), 50) for z in MUMBAI_ZONES]
+    all_acc = [to_float(z.get('accident_count'), 0) for z in MUMBAI_ZONES]
+    score_min, score_max = _min_max(all_scores, 0, 100)
+    acc_min, acc_max = _min_max(all_acc, 0, 1)
+
+    base_norm = _norm(base_score, score_min, score_max, 0.5)
+    acc_norm = _norm(to_float(zone.get('accident_count'), 0), acc_min, acc_max, 0.5)
+
+    # Low traffic and low lighting raise nighttime vulnerability.
+    lighting_risk = (1 - lighting) * 100
+    traffic_risk = (1 - traffic) * 100
+    base_risk = base_norm * 100
+    accident_risk = acc_norm * 100
+
+    if 0 <= time_hour < 5:
+        time_penalty = 16
+    elif 20 <= time_hour <= 23:
+        time_penalty = 10
+    else:
+        time_penalty = 3
+
+    risk_score = round(
+        base_risk * 0.38 +
+        lighting_risk * 0.27 +
+        traffic_risk * 0.2 +
+        accident_risk * 0.15 +
+        time_penalty,
+        1,
+    )
+
+    # Convert normalized accident signal to 0/1/2 for explainability helpers.
+    if acc_norm >= 0.67:
+        acc_hist = 2
+    elif acc_norm >= 0.34:
+        acc_hist = 1
+    else:
+        acc_hist = 0
+
+    if risk_score >= 67:
+        risk_code = 2
+    elif risk_score >= 43:
+        risk_code = 1
+    else:
+        risk_code = 0
+
+    return risk_code, clamp(risk_score, 0, 100), acc_hist
 
 
 def find_nearest_zone(lat, lng):
@@ -564,8 +1103,8 @@ def build_route_from_roads(start_zone, dest_zone, prefer_safe=True):
 def find_safe_route(start_zone, dest_zone, time_hour):
     """Build route suggestions using ward-level road-risk data."""
     suggestions = []
-    start_name = start_zone['name']
-    dest_name = dest_zone['name']
+    start_name = start_zone.get('display_name', start_zone['name'])
+    dest_name = dest_zone.get('display_name', dest_zone['name'])
     start_ward = start_zone.get('ward_id', '').upper()
     dest_ward = dest_zone.get('ward_id', '').upper()
 
@@ -648,11 +1187,117 @@ def find_safe_route(start_zone, dest_zone, time_hour):
     return suggestions
 
 
+def _route_priority_weights(priority):
+    key = str(priority or 'balanced').strip().lower()
+    if key == 'safety':
+        return {'risk': 0.6, 'time': 0.25, 'cost': 0.15}
+    if key == 'time':
+        return {'risk': 0.25, 'time': 0.6, 'cost': 0.15}
+    if key == 'budget':
+        return {'risk': 0.25, 'time': 0.2, 'cost': 0.55}
+    return {'risk': 0.4, 'time': 0.35, 'cost': 0.25}
+
+
+def build_route_alternatives(start_zone, dest_zone, time_hour, priority='balanced'):
+    dist_km = max(0.4, round(math.sqrt(
+        (start_zone['lat'] - dest_zone['lat']) ** 2 +
+        (start_zone['lng'] - dest_zone['lng']) ** 2
+    ) * 111, 1))
+
+    start_ward = normalize_ward(start_zone.get('ward_id'))
+    dest_ward = normalize_ward(dest_zone.get('ward_id'))
+    avg_road_risk = (
+        to_float(ROAD_RISK_BY_WARD.get(start_ward), 0.5) +
+        to_float(ROAD_RISK_BY_WARD.get(dest_ward), 0.5)
+    ) / 2
+
+    zone_risk_penalty = 8 if (start_zone.get('risk') == 'high' or dest_zone.get('risk') == 'high') else 0
+    late_night_penalty = 12 if (time_hour >= 22 or time_hour <= 4) else 0
+    base_exposure = clamp(avg_road_risk * 100 + zone_risk_penalty + late_night_penalty, 8, 95)
+
+    candidates = [
+        {
+            'id': 'shield-taxi',
+            'mode': 'taxi',
+            'title': 'Shield Route (Taxi Priority)',
+            'color': '#34d399',
+            'time_min': max(8, round(dist_km * 3.2)),
+            'cost_inr': max(30, round(25 + dist_km * 15)),
+            'risk_exposure': round(clamp(base_exposure * 0.58, 5, 90), 1),
+            'tradeoffs': [
+                'Lowest estimated exposure on risky corridors',
+                'Fast door-to-door travel at premium fare',
+            ],
+            'polyline': build_route_from_roads(start_zone, dest_zone, prefer_safe=True),
+        },
+        {
+            'id': 'balanced-auto-transit',
+            'mode': 'auto',
+            'title': 'Balanced Route (Auto + Safer Corridors)',
+            'color': '#60a5fa',
+            'time_min': max(11, round(dist_km * 4.1)),
+            'cost_inr': max(20, round(15 + dist_km * 10)),
+            'risk_exposure': round(clamp(base_exposure * 0.77, 7, 92), 1),
+            'tradeoffs': [
+                'Lower cost than taxi with moderate ETA',
+                'Slightly higher exposure in mixed-risk segments',
+            ],
+            'polyline': build_route_from_roads(start_zone, dest_zone, prefer_safe=True),
+        },
+        {
+            'id': 'budget-transit-walk',
+            'mode': 'transit',
+            'title': 'Budget Route (Transit + Walk)',
+            'color': '#f59e0b',
+            'time_min': max(14, round(dist_km * 5.4)),
+            'cost_inr': max(5, round(dist_km * 4)),
+            'risk_exposure': round(clamp(base_exposure * 1.05 + (6 if dist_km < 2.2 else 0), 10, 97), 1),
+            'tradeoffs': [
+                'Most affordable option',
+                'Longest duration and more exposure to street conditions',
+            ],
+            'polyline': build_route_from_roads(start_zone, dest_zone, prefer_safe=False),
+        },
+    ]
+
+    weights = _route_priority_weights(priority)
+    max_time = max(c['time_min'] for c in candidates)
+    max_cost = max(c['cost_inr'] for c in candidates)
+
+    for c in candidates:
+        r_norm = c['risk_exposure'] / 100
+        t_norm = c['time_min'] / max_time if max_time else 0
+        c_norm = c['cost_inr'] / max_cost if max_cost else 0
+        blended = (weights['risk'] * r_norm) + (weights['time'] * t_norm) + (weights['cost'] * c_norm)
+        c['rank_score'] = round(100 - (blended * 100), 1)
+        c['explainability'] = {
+            'priority': str(priority or 'balanced').lower(),
+            'weights': weights,
+            'factors': {
+                'risk': round(r_norm, 3),
+                'time': round(t_norm, 3),
+                'cost': round(c_norm, 3),
+            },
+        }
+
+    ranked = sorted(candidates, key=lambda x: x['rank_score'], reverse=True)
+    for i, c in enumerate(ranked, start=1):
+        c['rank'] = i
+
+    return ranked
+
+
 @app.route('/api/analyze-route', methods=['POST'])
 def api_analyze_route():
     data = request.get_json(force=True)
     start_name = str(data.get('start_zone', '')).strip()
     dest_name = str(data.get('dest_zone', '')).strip()
+    start_location = str(data.get('start_location', '')).strip()
+    dest_location = str(data.get('dest_location', '')).strip()
+    start_lat = data.get('start_lat')
+    start_lng = data.get('start_lng')
+    dest_lat = data.get('dest_lat')
+    dest_lng = data.get('dest_lng')
     time_val = data.get('time', 23)
 
     try:
@@ -661,11 +1306,21 @@ def api_analyze_route():
         time_hour = 23
     time_hour = max(0, min(23, time_hour))
 
-    # Resolve zones by name
-    start_zone = find_zone(start_name)
-    dest_zone = find_zone(dest_name)
+    # Resolve by location text or coordinates first, then by zone names.
+    start_zone = resolve_zone_input(
+        zone_name=start_name,
+        location_name=start_location,
+        lat=start_lat,
+        lng=start_lng,
+    )
+    dest_zone = resolve_zone_input(
+        zone_name=dest_name,
+        location_name=dest_location,
+        lat=dest_lat,
+        lng=dest_lng,
+    )
     if not start_zone or not dest_zone:
-        return jsonify({'error': 'Unknown zone name(s)'}), 400
+        return jsonify({'error': 'Could not resolve start or destination location'}), 400
 
     lat1, lon1 = start_zone['lat'], start_zone['lng']
     lat2, lon2 = dest_zone['lat'], dest_zone['lng']
@@ -679,18 +1334,34 @@ def api_analyze_route():
     risk_level, risk_score = predict_risk(lighting, traffic, acc_hist, area, time_hour)
     reasons = explain_risk(lighting, traffic, acc_hist, area, time_hour)
 
+    priority = str(data.get('priority', 'balanced')).strip().lower()
+
     # Generate smart suggestions if route is risky
     suggestions = []
     if risk_level >= 1:  # medium or high
         suggestions = find_safe_route(start_zone, dest_zone, time_hour)
+
+    alternatives = build_route_alternatives(start_zone, dest_zone, time_hour, priority=priority)
 
     return jsonify({
         'risk_level': RISK_LABELS[risk_level],
         'risk_score': risk_score,
         'risk_code': risk_level,
         'reasons': reasons,
-        'start_zone': {'name': start_zone['name'], 'lat': lat1, 'lng': lon1, 'risk': start_zone['risk'], 'score': start_zone['score']},
-        'dest_zone':  {'name': dest_zone['name'],  'lat': lat2, 'lng': lon2, 'risk': dest_zone['risk'],  'score': dest_zone['score']},
+        'start_zone': {
+            'name': start_zone.get('display_name', start_zone['name']),
+            'lat': lat1,
+            'lng': lon1,
+            'risk': start_zone['risk'],
+            'score': start_zone['score'],
+        },
+        'dest_zone': {
+            'name': dest_zone.get('display_name', dest_zone['name']),
+            'lat': lat2,
+            'lng': lon2,
+            'risk': dest_zone['risk'],
+            'score': dest_zone['score'],
+        },
         'features': {
             'lighting_level': lighting,
             'traffic_density': traffic,
@@ -701,6 +1372,45 @@ def api_analyze_route():
         'unsafe_route': build_route_from_roads(start_zone, dest_zone, prefer_safe=False),
         'safe_route': build_route_from_roads(start_zone, dest_zone, prefer_safe=True),
         'suggestions': suggestions,
+        'priority': priority,
+        'route_alternatives': alternatives,
+        'resolution': {
+            'start_input': (start_location or start_name or '').strip(),
+            'dest_input': (dest_location or dest_name or '').strip(),
+            'start_resolved': start_zone.get('display_name', start_zone.get('name')),
+            'dest_resolved': dest_zone.get('display_name', dest_zone.get('name')),
+            'start_ward_id': start_zone.get('ward_id'),
+            'dest_ward_id': dest_zone.get('ward_id'),
+        },
+    })
+
+
+@app.route('/api/route-alternatives', methods=['POST'])
+def api_route_alternatives():
+    data = request.get_json(force=True)
+    start_name = str(data.get('start_zone', '')).strip()
+    dest_name = str(data.get('dest_zone', '')).strip()
+    start_location = str(data.get('start_location', '')).strip()
+    dest_location = str(data.get('dest_location', '')).strip()
+    priority = str(data.get('priority', 'balanced')).strip().lower()
+
+    try:
+        time_hour = int(str(data.get('time', 23)).split(':')[0])
+    except (TypeError, ValueError):
+        time_hour = 23
+    time_hour = clamp(time_hour, 0, 23)
+
+    start_zone = resolve_zone_input(zone_name=start_name, location_name=start_location)
+    dest_zone = resolve_zone_input(zone_name=dest_name, location_name=dest_location)
+    if not start_zone or not dest_zone:
+        return jsonify({'error': 'Could not resolve start or destination location'}), 400
+
+    alternatives = build_route_alternatives(start_zone, dest_zone, time_hour, priority=priority)
+    return jsonify({
+        'start_zone': start_zone.get('display_name', start_zone['name']),
+        'dest_zone': dest_zone.get('display_name', dest_zone['name']),
+        'priority': priority,
+        'alternatives': alternatives,
     })
 
 
@@ -717,10 +1427,9 @@ def api_zone_predict():
 
     lighting = zone.get('lighting', 0.3)
     traffic = zone.get('traffic', 0.3)
-    acc_hist = zone.get('accidents', 1)
     area = zone.get('area', 'urban')
 
-    risk_level, risk_score = predict_risk(lighting, traffic, acc_hist, area, time_hour)
+    risk_level, risk_score, acc_hist = calibrated_zone_risk(zone, time_hour)
     reasons = explain_risk(lighting, traffic, acc_hist, area, time_hour)
 
     return jsonify({
@@ -813,7 +1522,7 @@ def api_risk_zones():
             'lat': z['lat'],
             'lng': z['lng'],
             'risk': z['risk'],
-            'name': z['name'],
+            'name': z.get('display_name', z['name']),
             'score': z['score'],
             'ward_id': z.get('ward_id'),
             'boundary': WARD_GEOMETRIES.get(z.get('ward_id', ''), None),
@@ -826,7 +1535,10 @@ def api_risk_zones():
 def api_zones_detail():
     """Return dataset-backed ward detail for interactive map layers."""
     detailed = []
-    max_crime_count = max([to_int(z.get('crime_count'), 0) for z in MUMBAI_ZONES] + [1])
+    crime_values = [to_int(z.get('crime_count'), 0) for z in MUMBAI_ZONES]
+    min_crime_count = min(crime_values) if crime_values else 0
+    max_crime_count = max(crime_values) if crime_values else 1
+    crime_span = max(1, max_crime_count - min_crime_count)
     for z in MUMBAI_ZONES:
         lighting = z.get('lighting', 0.5)
         accidents = z.get('accidents', 0)
@@ -842,13 +1554,17 @@ def api_zones_detail():
             faulty_lights = round((1 - lighting) * total_lights)
         working_lights = total_lights - faulty_lights
 
+        faulty_pct = round((faulty_lights / total_lights) * 100, 1) if total_lights else 0
+        crime_index = int(round(((crime_count - min_crime_count) / crime_span) * 100)) if crime_span else 50
+
         # Combined risk = weighted mix from dataset-derived crime + lighting + model score
         crime_factor = min(1.0, crime_count / max_crime_count)
         light_factor = 1 - lighting
         combined_risk = round((crime_factor * 0.4 + light_factor * 0.3 + (score / 100) * 0.3) * 100, 1)
 
         detailed.append({
-            'name': z['name'],
+            'name': z.get('display_name', z['name']),
+            'zone_name': z['name'],
             'lat': z['lat'],
             'lng': z['lng'],
             'ward_id': z.get('ward_id'),
@@ -859,10 +1575,13 @@ def api_zones_detail():
             'traffic': z.get('traffic', 0.5),
             'accidents': accidents,
             'crime_count': crime_count,
+            'crime_index': crime_index,
             'total_lights': total_lights,
             'faulty_lights': faulty_lights,
+            'faulty_lights_pct': faulty_pct,
             'working_lights': working_lights,
             'combined_risk': combined_risk,
+            'combined_risk_rounded': int(round(combined_risk)),
             'boundary': WARD_GEOMETRIES.get(z.get('ward_id', ''), None),
         })
     return jsonify({'zones': detailed})
@@ -872,14 +1591,86 @@ def api_zones_detail():
 def api_zones_list():
     """Return sorted zone names for dropdowns with full data."""
     return jsonify({'zones': sorted(
-        [{'name': z['name'], 'risk': z['risk'], 'score': z['score'],
+                [{'name': z.get('display_name', z['name']), 'zone_name': z['name'], 'risk': z['risk'], 'score': z['score'],
           'lat': z['lat'], 'lng': z['lng'],
                     'ward_id': z.get('ward_id'),
+          'aliases': z.get('aliases', [])[:10],
           'lighting': z.get('lighting', 0.5), 'traffic': z.get('traffic', 0.5),
           'accidents': z.get('accidents', 1), 'area': z.get('area', 'urban'),
           } for z in MUMBAI_ZONES],
         key=lambda x: x['name'],
     )})
+
+
+@app.route('/api/location-suggestions')
+def api_location_suggestions():
+    q = normalize_text(request.args.get('q', ''))
+
+    records = []
+    for z in MUMBAI_ZONES:
+        aliases = z.get('aliases', [])
+        label = z.get('display_name', z.get('name'))
+        for alias in aliases + [z.get('name', '')]:
+            alias_norm = normalize_text(alias)
+            if not alias_norm:
+                continue
+            score = 0.0
+            if not q:
+                score = 0.5
+            elif q == alias_norm:
+                score = 1.0
+            elif q in alias_norm or alias_norm in q:
+                score = 0.85
+            else:
+                score = difflib.SequenceMatcher(None, q, alias_norm).ratio()
+
+            if score < 0.55 and q:
+                continue
+
+            records.append({
+                'label': label,
+                'query_text': alias,
+                'zone_name': z.get('name'),
+                'ward_id': z.get('ward_id'),
+                'lat': z.get('lat'),
+                'lng': z.get('lng'),
+                'score': round(score, 3),
+            })
+
+    unique = {}
+    for r in sorted(records, key=lambda x: x['score'], reverse=True):
+        k = (r['zone_name'], normalize_text(r['query_text']))
+        if k not in unique:
+            unique[k] = r
+        if len(unique) >= 40:
+            break
+
+    # Progressive fallback: add geocoded landmarks when typed query is specific.
+    if q and len(q) >= 4 and len(unique) < 16:
+        geo_results = geocode_landmark(q, limit=8)
+        for item in geo_results:
+            zone = find_nearest_zone(item['lat'], item['lng'])
+            if not zone:
+                continue
+            disp = item.get('display_name', '')
+            short = disp.split(',')[0] if disp else q
+            rec = {
+                'label': f"{short} → near {zone.get('display_name', zone.get('name'))}",
+                'query_text': short,
+                'zone_name': zone.get('name'),
+                'ward_id': zone.get('ward_id'),
+                'lat': item['lat'],
+                'lng': item['lng'],
+                'score': round(clamp(item.get('importance', 0), 0, 1), 3),
+                'source': 'geocoder',
+            }
+            key = (rec['zone_name'], normalize_text(rec['query_text']))
+            if key not in unique:
+                unique[key] = rec
+            if len(unique) >= 40:
+                break
+
+    return jsonify({'suggestions': list(unique.values())})
 
 
 @app.route('/api/ward-boundaries')
@@ -895,7 +1686,7 @@ def api_ward_boundaries():
             'geometry': geom,
             'properties': {
                 'ward_id': z.get('ward_id'),
-                'name': z.get('name'),
+                'name': z.get('display_name', z.get('name')),
                 'risk': z.get('risk'),
                 'score': z.get('score'),
                 'crime_count': z.get('crime_count', 0),
@@ -953,10 +1744,11 @@ def api_ward_profile():
     return jsonify({
         'ward_id': ward_id,
         'zone': {
-            'name': zone.get('name'),
+            'name': zone.get('display_name', zone.get('name')),
             'risk': zone.get('risk'),
             'score': zone.get('score'),
             'area': zone.get('area'),
+            'aliases': zone.get('aliases', []),
             'lat': zone.get('lat'),
             'lng': zone.get('lng'),
             'boundary': WARD_GEOMETRIES.get(ward_id),
@@ -965,6 +1757,7 @@ def api_ward_profile():
             'count': to_int(zone.get('crime_count'), 0),
             'night_count': to_int(zone.get('night_crimes'), 0),
             'hourly': hourly,
+            'monthly': CRIME_MONTHLY_BY_WARD.get(ward_id, [0] * 12),
             'peak_hour': int(np.argmax(hourly)) if hourly else 0,
             'monthly_rate_per_1000': round(to_float(zone.get('monthly_crime_rate_per_1000'), 0), 2),
         },
@@ -979,6 +1772,7 @@ def api_ward_profile():
         'accidents': {
             'count': to_int(zone.get('accident_count'), 0),
             'severity_band': to_int(zone.get('accidents'), 0),
+            'monthly': ACCIDENT_MONTHLY_BY_WARD.get(ward_id, [0] * 12),
             'monthly_per_km2': round(to_float(zone.get('monthly_accidents_per_km2'), 0), 2),
         },
         'roads': {
@@ -996,6 +1790,23 @@ def api_ward_profile():
     })
 
 
+@app.route('/api/cache-status')
+def api_cache_status():
+    return jsonify({
+        'materialized_file': os.path.exists(MATERIALIZED_STATS_PATH),
+        'source': MATERIALIZED_SOURCE,
+        'last_refreshed_at': LAST_REFRESHED_AT,
+        'refresh_interval_seconds': REFRESH_INTERVAL_SECONDS,
+        'zones_loaded': len(MUMBAI_ZONES),
+    })
+
+
+@app.route('/api/refresh-data', methods=['POST'])
+def api_refresh_data():
+    load_city_datasets()
+    return jsonify({'ok': True, 'last_refreshed_at': LAST_REFRESHED_AT, 'source': MATERIALIZED_SOURCE})
+
+
 @app.route('/api/city-overview')
 def api_city_overview():
     """Return high-level city analytics snapshot for dashboards and cards."""
@@ -1006,8 +1817,8 @@ def api_city_overview():
     faulty_lights = max(0, total_lights - working_lights)
 
     if MUMBAI_ZONES:
-        safest = min(MUMBAI_ZONES, key=lambda z: z.get('score', 0)).get('name')
-        dangerous = max(MUMBAI_ZONES, key=lambda z: z.get('score', 0)).get('name')
+        safest = min(MUMBAI_ZONES, key=lambda z: z.get('score', 0)).get('display_name') or min(MUMBAI_ZONES, key=lambda z: z.get('score', 0)).get('name')
+        dangerous = max(MUMBAI_ZONES, key=lambda z: z.get('score', 0)).get('display_name') or max(MUMBAI_ZONES, key=lambda z: z.get('score', 0)).get('name')
     else:
         safest = ''
         dangerous = ''
@@ -1065,6 +1876,12 @@ def api_dataset_health():
             'road_wards': len(ROADS_BY_WARD),
             'road_segments': ROAD_SEGMENT_COUNT,
         },
+        'cache': {
+            'source': MATERIALIZED_SOURCE,
+            'materialized_file': os.path.exists(MATERIALIZED_STATS_PATH),
+            'last_refreshed_at': LAST_REFRESHED_AT,
+            'refresh_interval_seconds': REFRESH_INTERVAL_SECONDS,
+        },
     })
 
 
@@ -1119,8 +1936,8 @@ def api_insights_data():
             'total_incidents': total_incidents,
             'peak_hour': peak_hour,
             'peak_hour_label': f'{peak_hour:02d}:00',
-            'safest_zone': min(MUMBAI_ZONES, key=lambda z: z['score'])['name'],
-            'most_dangerous': max(MUMBAI_ZONES, key=lambda z: z['score'])['name'],
+            'safest_zone': min(MUMBAI_ZONES, key=lambda z: z['score']).get('display_name', min(MUMBAI_ZONES, key=lambda z: z['score'])['name']),
+            'most_dangerous': max(MUMBAI_ZONES, key=lambda z: z['score']).get('display_name', max(MUMBAI_ZONES, key=lambda z: z['score'])['name']),
         },
         # Sparkline data from observed aggregates
         'sparklines': {
@@ -1130,7 +1947,7 @@ def api_insights_data():
         },
         # Highest-risk wards (horizontal bar)
         'risk_by_zone': {
-            'labels': [z['name'] for z in sorted(MUMBAI_ZONES, key=lambda x: -x['score'])[:10]],
+            'labels': [z.get('display_name', z['name']) for z in sorted(MUMBAI_ZONES, key=lambda x: -x['score'])[:10]],
             'scores': [z['score'] for z in sorted(MUMBAI_ZONES, key=lambda x: -x['score'])[:10]],
             'risks':  [z['risk'] for z in sorted(MUMBAI_ZONES, key=lambda x: -x['score'])[:10]],
         },
@@ -1190,7 +2007,7 @@ def api_insights_data():
         },
         # Crime rate vs lighting quality correlation
         'crime_lighting_correlation': {
-            'labels': [z['name'] for z in MUMBAI_ZONES],
+            'labels': [z.get('display_name', z['name']) for z in MUMBAI_ZONES],
             'lighting': [z.get('lighting', 0.5) for z in MUMBAI_ZONES],
             'risk_scores': [z['score'] for z in MUMBAI_ZONES],
             'colors': [z['risk'] for z in MUMBAI_ZONES],
@@ -1203,14 +2020,20 @@ def api_insights_data():
             'adequate_light_high_crime': len([z for z in MUMBAI_ZONES if z.get('lighting', 0.5) >= 0.3 and z['score'] > 50]),
             'adequate_light_medium_crime': len([z for z in MUMBAI_ZONES if z.get('lighting', 0.5) >= 0.3 and 30 <= z['score'] <= 50]),
             'adequate_light_low_crime': len([z for z in MUMBAI_ZONES if z.get('lighting', 0.5) >= 0.3 and z['score'] < 30]),
-            'zones_poor_light_high_crime': [z['name'] for z in MUMBAI_ZONES if z.get('lighting', 0.5) < 0.3 and z['score'] > 50],
+            'zones_poor_light_high_crime': [z.get('display_name', z['name']) for z in MUMBAI_ZONES if z.get('lighting', 0.5) < 0.3 and z['score'] > 50],
         },
     })
 
 
 # ── Boot ────────────────────────────────────────────────────────────────────
 
-load_city_datasets()
+if not load_materialized_stats():
+    load_city_datasets()
+else:
+    # Warm cache is loaded for fast boot; refresh immediately in background.
+    threading.Thread(target=load_city_datasets, name='nuit-refresh-now', daemon=True).start()
+
+start_background_refresh_job()
 init_db()
 load_model()
 

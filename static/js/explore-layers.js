@@ -9,6 +9,8 @@ const ExploreLayers = (() => {
   let _zonesData = [];
   let _roadSegments = [];
   let _activeLayers = new Set(['risk']);
+  let _isRouteFocus = false;
+  let _isCleanMode = false;
 
   // Layer groups
   const _layerGroups = {
@@ -21,12 +23,64 @@ const ExploreLayers = (() => {
 
   // Colors
   const RISK_COLORS = { low: '#34d399', medium: '#fbbf24', high: '#f87171' };
-  const CRIME_GRADIENT = [
-    { max: 15, color: '#86efac', label: 'Low' },
-    { max: 30, color: '#fde047', label: 'Moderate' },
-    { max: 50, color: '#fb923c', label: 'High' },
-    { max: Infinity, color: '#ef4444', label: 'Critical' },
-  ];
+  function toNumber(v, fallback = 0) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : fallback;
+  }
+
+  function buildStats(values) {
+    const nums = values
+      .map(v => toNumber(v, NaN))
+      .filter(v => Number.isFinite(v))
+      .sort((a, b) => a - b);
+
+    if (!nums.length) {
+      return { min: 0, max: 1, q1: 0.25, q2: 0.5, q3: 0.75 };
+    }
+
+    const at = (p) => nums[Math.max(0, Math.min(nums.length - 1, Math.floor((nums.length - 1) * p)))];
+    return {
+      min: nums[0],
+      max: nums[nums.length - 1],
+      q1: at(0.25),
+      q2: at(0.5),
+      q3: at(0.75),
+    };
+  }
+
+  function unitScale(value, min, max) {
+    if (max <= min) return 0.5;
+    return Math.max(0, Math.min(1, (value - min) / (max - min)));
+  }
+
+  function pickQuantileBin(value, stats) {
+    if (value <= stats.q1) return 0;
+    if (value <= stats.q2) return 1;
+    if (value <= stats.q3) return 2;
+    return 3;
+  }
+
+  function colorByQuantile(value, stats, palette) {
+    return palette[pickQuantileBin(value, stats)] || palette[palette.length - 1];
+  }
+
+  function colorByBand(value, bands, fallback) {
+    for (const band of bands) {
+      if (value <= band.max) return band.color;
+    }
+    return fallback;
+  }
+
+  function radiusFromUnit(unit, minRadius, maxRadius) {
+    return Math.round(minRadius + (maxRadius - minRadius) * unit);
+  }
+
+  function compactNumber(v) {
+    const n = toNumber(v, 0);
+    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
+    if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+    return String(Math.round(n));
+  }
 
   function getBoundaryLatLngs(z) {
     if (!z.boundary || z.boundary.type !== 'Polygon' || !Array.isArray(z.boundary.coordinates)) return null;
@@ -57,6 +111,7 @@ const ExploreLayers = (() => {
     loadDetailedZones();
     bindLayerButtons();
     bindDetailPanel();
+    updateLayerLegend();
   }
 
   /* ── Load zone data ──────────────────────────────────────────────────── */
@@ -83,6 +138,7 @@ const ExploreLayers = (() => {
     renderLightsLayer();
     renderCombinedLayer();
     renderRoadLayer();
+    applyVisualState();
   }
 
   /* ── Risk Layer (original circles) ──────────────────────────────────── */
@@ -98,10 +154,11 @@ const ExploreLayers = (() => {
 
       addBoundaryPolygon(group, z, {
         color,
-        weight: 1.4,
+        weight: 1.15,
         fillColor: color,
-        fillOpacity: 0.16,
-        opacity: 0.55,
+        fillOpacity: 0.12,
+        opacity: 0.45,
+        smoothFactor: 1.4,
       });
 
       // Outer glow
@@ -126,16 +183,7 @@ const ExploreLayers = (() => {
         fillOpacity: 0.9, weight: 0,
       }).on('click', () => showZoneDetail(z)).addTo(group);
 
-      // Label
-      L.marker([z.lat, z.lng], {
-        icon: L.divIcon({
-          html: `<div class="map-zone-label" style="color:${color}">${z.name}</div>`,
-          iconSize: [0, 0],
-          iconAnchor: [0, -18],
-          className: '',
-        }),
-        interactive: false,
-      }).addTo(group);
+      // Avoid dense permanent labels; keep interaction through click and details panel.
     });
   }
 
@@ -144,49 +192,51 @@ const ExploreLayers = (() => {
     const group = _layerGroups.crime;
     group.clearLayers();
 
-    const maxCrime = Math.max(..._zonesData.map(z => z.crime_count || 0), 1);
+    const crimeStats = buildStats(_zonesData.map(z => toNumber(z.crime_index, toNumber(z.crime_count, 0))));
+    const crimeBands = [
+      { max: 24, color: '#34d399' },
+      { max: 49, color: '#fde047' },
+      { max: 74, color: '#fb923c' },
+      { max: 100, color: '#ef4444' },
+    ];
 
     _zonesData.forEach(z => {
-      const grade = CRIME_GRADIENT.find(g => z.crime_count <= g.max) || CRIME_GRADIENT[CRIME_GRADIENT.length - 1];
-      const color = grade.color;
-      const radius = 300 + z.crime_count * 6;
-      const intensity = Math.max(0.15, Math.min(0.65, (z.crime_count || 0) / maxCrime));
+      const crimeCount = toNumber(z.crime_count, 0);
+      const crimeIndex = toNumber(z.crime_index, 0);
+      const unit = unitScale(crimeIndex, crimeStats.min, crimeStats.max);
+      const color = colorByBand(crimeIndex, crimeBands, '#ef4444');
+      const radius = radiusFromUnit(unit, 180, 430);
+      const intensity = 0.14 + unit * 0.38;
 
       addBoundaryPolygon(group, z, {
         color,
-        weight: 1.3,
+        weight: 1.4,
         fillColor: color,
-        fillOpacity: 0.12 + intensity * 0.4,
-        opacity: 0.65,
+        fillOpacity: intensity,
+        opacity: 0.72,
       });
-
-      // Heatmap-style circle
-      L.circle([z.lat, z.lng], {
-        radius: radius + 120,
-        color: 'transparent', fillColor: color,
-        fillOpacity: 0.08, weight: 0,
-      }).addTo(group);
 
       L.circle([z.lat, z.lng], {
         radius,
         color, fillColor: color,
-        fillOpacity: 0.22, weight: 2,
-        opacity: 0.6,
-        dashArray: z.crime_count > 40 ? null : '6, 4',
+        fillOpacity: 0.12 + unit * 0.18,
+        weight: 1.5,
+        opacity: 0.55,
       }).on('click', () => showZoneDetail(z)).addTo(group);
 
-      // Crime count marker
-      L.marker([z.lat, z.lng], {
-        icon: L.divIcon({
-          html: `<div class="map-crime-marker">
-            <span class="crime-count">${z.crime_count}</span>
-            <span class="crime-label">incidents</span>
-          </div>`,
-          iconSize: [60, 36],
-          iconAnchor: [30, 18],
-          className: '',
-        }),
-      }).on('click', () => showZoneDetail(z)).addTo(group);
+      if (unit >= 0.45) {
+        L.marker([z.lat, z.lng], {
+          icon: L.divIcon({
+            html: `<div class="map-crime-marker" style="border-color:${color}88;color:${color}">
+              <span class="crime-count">${crimeIndex}</span>
+              <span class="crime-label">crime idx</span>
+            </div>`,
+            iconSize: [52, 30],
+            iconAnchor: [26, 15],
+            className: '',
+          }),
+        }).on('click', () => showZoneDetail(z)).addTo(group);
+      }
     });
   }
 
@@ -195,47 +245,61 @@ const ExploreLayers = (() => {
     const group = _layerGroups.lights;
     group.clearLayers();
 
+    const faultyPctValues = _zonesData.map(z => toNumber(z.faulty_lights_pct, 0));
+    const lightStats = buildStats(faultyPctValues);
+    const lightsBands = [
+      { max: 25, color: '#10b981' },
+      { max: 45, color: '#84cc16' },
+      { max: 60, color: '#fbbf24' },
+      { max: 100, color: '#ef4444' },
+    ];
+
     _zonesData.forEach(z => {
-      const faultyPct = z.total_lights > 0 ? z.faulty_lights / z.total_lights : 0;
-      const color = faultyPct > 0.6 ? '#ef4444' : faultyPct > 0.3 ? '#fbbf24' : '#34d399';
-      const radius = 320 + faultyPct * 380;
+      const totalLights = Math.max(0, toNumber(z.total_lights, 0));
+      const faultyLights = Math.max(0, toNumber(z.faulty_lights, 0));
+      const faultyPctDisplay = Math.round(toNumber(z.faulty_lights_pct, totalLights > 0 ? (faultyLights / totalLights) * 100 : 0));
+      const unit = unitScale(faultyPctDisplay, lightStats.min, lightStats.max);
+      const color = colorByBand(faultyPctDisplay, lightsBands, '#ef4444');
+      const radius = radiusFromUnit(unit, 170, 360);
 
       addBoundaryPolygon(group, z, {
         color,
         weight: 1.3,
         fillColor: color,
-        fillOpacity: 0.16 + faultyPct * 0.34,
-        opacity: 0.7,
+        fillOpacity: 0.14 + unit * 0.34,
+        opacity: 0.72,
       });
 
-      // Glow for faulty areas
-      if (faultyPct > 0.3) {
+      if (unit >= 0.7) {
         L.circle([z.lat, z.lng], {
-          radius: radius + 100,
+          radius: radius + 40,
           color: 'transparent', fillColor: color,
-          fillOpacity: 0.07, weight: 0,
+          fillOpacity: 0.08, weight: 0,
         }).addTo(group);
       }
 
       L.circle([z.lat, z.lng], {
         radius,
         color, fillColor: color,
-        fillOpacity: 0.16, weight: 1.5, opacity: 0.5,
+        fillOpacity: 0.12 + unit * 0.15,
+        weight: 1.3,
+        opacity: 0.52,
       }).on('click', () => showZoneDetail(z)).addTo(group);
 
-      // Light status icon
-      const icon = faultyPct > 0.5 ? '💡' : faultyPct > 0.2 ? '🔦' : '✅';
-      L.marker([z.lat, z.lng], {
-        icon: L.divIcon({
-          html: `<div class="map-light-marker">
-            <span class="light-icon">${icon}</span>
-            <span class="light-info">${z.faulty_lights}/${z.total_lights}</span>
-          </div>`,
-          iconSize: [56, 36],
-          iconAnchor: [28, 18],
-          className: '',
-        }),
-      }).on('click', () => showZoneDetail(z)).addTo(group);
+      if (unit >= 0.35) {
+        const icon = unit >= 0.75 ? '⚠' : (unit >= 0.5 ? '◐' : '○');
+        L.marker([z.lat, z.lng], {
+          icon: L.divIcon({
+            html: `<div class="map-light-marker" style="border-color:${color}88;color:${color}">
+              <span class="light-icon">${icon}</span>
+              <span class="light-info">${faultyPctDisplay}% bad</span>
+            </div>`,
+            iconSize: [64, 28],
+            iconAnchor: [32, 14],
+            className: '',
+          }),
+        }).on('click', () => showZoneDetail(z)).addTo(group);
+      }
     });
   }
 
@@ -244,45 +308,52 @@ const ExploreLayers = (() => {
     const group = _layerGroups.combined;
     group.clearLayers();
 
+    const combinedStats = buildStats(_zonesData.map(z => toNumber(z.combined_risk_rounded, z.combined_risk)));
+    const combinedBands = [
+      { max: 49, color: '#10b981' },
+      { max: 59, color: '#60a5fa' },
+      { max: 69, color: '#f59e0b' },
+      { max: 100, color: '#ef4444' },
+    ];
+
     _zonesData.forEach(z => {
-      const risk = z.combined_risk;
-      const color = risk > 65 ? '#ef4444' : risk > 40 ? '#f59e0b' : risk > 20 ? '#3b82f6' : '#10b981';
-      const radius = 350 + risk * 4;
+      const risk = toNumber(z.combined_risk, 0);
+      const riskDisplay = toNumber(z.combined_risk_rounded, Math.round(risk));
+      const unit = unitScale(riskDisplay, combinedStats.min, combinedStats.max);
+      const color = colorByBand(riskDisplay, combinedBands, '#ef4444');
+      const radius = radiusFromUnit(unit, 190, 420);
 
       addBoundaryPolygon(group, z, {
         color,
         weight: 1.4,
         fillColor: color,
-        fillOpacity: 0.12 + (risk / 100) * 0.45,
-        opacity: 0.7,
+        fillOpacity: 0.14 + unit * 0.36,
+        opacity: 0.74,
       });
-
-      // Outer glow
-      L.circle([z.lat, z.lng], {
-        radius: radius + 140,
-        color: 'transparent', fillColor: color,
-        fillOpacity: 0.06, weight: 0,
-      }).addTo(group);
 
       // Main
       L.circle([z.lat, z.lng], {
         radius,
         color, fillColor: color,
-        fillOpacity: 0.2, weight: 2, opacity: 0.6,
+        fillOpacity: 0.14 + unit * 0.16,
+        weight: 1.5,
+        opacity: 0.54,
       }).on('click', () => showZoneDetail(z)).addTo(group);
 
       // Combined score badge
-      L.marker([z.lat, z.lng], {
-        icon: L.divIcon({
-          html: `<div class="map-combined-marker" style="border-color:${color}; color:${color}">
-            <span class="combined-score">${risk}</span>
-            <span class="combined-label">risk</span>
-          </div>`,
-          iconSize: [48, 36],
-          iconAnchor: [24, 18],
-          className: '',
-        }),
-      }).on('click', () => showZoneDetail(z)).addTo(group);
+      if (unit >= 0.45) {
+        L.marker([z.lat, z.lng], {
+          icon: L.divIcon({
+            html: `<div class="map-combined-marker" style="border-color:${color}; color:${color}">
+              <span class="combined-score">${riskDisplay}</span>
+              <span class="combined-label">risk</span>
+            </div>`,
+            iconSize: [46, 30],
+            iconAnchor: [23, 15],
+            className: '',
+          }),
+        }).on('click', () => showZoneDetail(z)).addTo(group);
+      }
     });
   }
 
@@ -291,17 +362,29 @@ const ExploreLayers = (() => {
     const group = _layerGroups.roads;
     group.clearLayers();
 
-    _roadSegments.forEach(seg => {
-      const color = seg.risk_level === 'high' ? '#ef4444' : seg.risk_level === 'medium' ? '#f59e0b' : '#34d399';
-      const weight = seg.risk_level === 'high' ? 3 : seg.risk_level === 'medium' ? 2.4 : 2;
+    const usableSegments = _roadSegments.filter(seg => Array.isArray(seg.coords) && seg.coords.length >= 2);
+    const roadRiskStats = buildStats(usableSegments.map(seg => seg.risk_score));
+    const roadPalette = ['#34d399', '#facc15', '#fb923c', '#ef4444'];
+    const maxSegments = _map && _map.getZoom && _map.getZoom() >= 13 ? 1200 : 750;
+    const prioritized = usableSegments
+      .slice()
+      .sort((a, b) => toNumber(b.risk_score, 0) - toNumber(a.risk_score, 0))
+      .slice(0, maxSegments);
+
+    prioritized.forEach(seg => {
+      const riskScore = toNumber(seg.risk_score, 0);
+      const unit = unitScale(riskScore, roadRiskStats.min, roadRiskStats.max);
+      const color = colorByQuantile(riskScore, roadRiskStats, roadPalette);
+      const weight = 1.5 + unit * 2;
 
       L.polyline(seg.coords, {
         color,
         weight,
-        opacity: 0.65,
+        opacity: 0.2 + unit * 0.6,
+        dashArray: unit < 0.3 ? '5, 6' : null,
       }).bindPopup(`
         <strong>${seg.name}</strong><br>
-        Ward: ${seg.ward_id}<br>
+        Area ID: ${seg.ward_id}<br>
         Risk: ${seg.risk_level.toUpperCase()} (${seg.risk_score})<br>
         Length: ${Math.round(seg.length_m)} m
       `).addTo(group);
@@ -318,7 +401,7 @@ const ExploreLayers = (() => {
 
         if (btn.classList.contains('active')) {
           _activeLayers.add(layer);
-          if (_layerGroups[layer] && _map) {
+          if (_layerGroups[layer] && _map && !_isCleanMode) {
             _layerGroups[layer].addTo(_map);
           }
         } else {
@@ -327,8 +410,117 @@ const ExploreLayers = (() => {
             _map.removeLayer(_layerGroups[layer]);
           }
         }
+
+        updateLayerLegend();
+        applyVisualState();
       });
     });
+  }
+
+  function updateLayerLegend() {
+    const wrap = document.getElementById('layer-legend-strip');
+    if (!wrap) return;
+
+    const has = (layer) => _activeLayers.has(layer);
+    const pills = [];
+
+    if (has('risk')) {
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#34d399"></span>Low</span>');
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#fbbf24"></span>Medium</span>');
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#f87171"></span>High</span>');
+    }
+
+    if (has('crime')) {
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#34d399"></span>Crime idx 0-24</span>');
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#fde047"></span>25-49</span>');
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#fb923c"></span>50-74</span>');
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#ef4444"></span>75-100</span>');
+    }
+
+    if (has('lights')) {
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#10b981"></span>Faulty ≤25%</span>');
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#84cc16"></span>≤45%</span>');
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#fbbf24"></span>≤60%</span>');
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#ef4444"></span>>60%</span>');
+    }
+
+    if (has('combined')) {
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#10b981"></span>Risk ≤49</span>');
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#60a5fa"></span>≤59</span>');
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#f59e0b"></span>≤69</span>');
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#ef4444"></span>>69</span>');
+    }
+
+    if (has('roads')) {
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#34d399"></span>Lower corridor risk</span>');
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#ef4444"></span>Higher corridor risk</span>');
+    }
+
+    wrap.innerHTML = pills.length ? pills.join('') : '<span class="layer-legend-pill">No layer selected</span>';
+  }
+
+  function setGroupMuted(group, muted) {
+    if (!group) return;
+    group.eachLayer(layer => {
+      if (layer.setStyle) {
+        if (!layer._nuitOriginalStyle) {
+          layer._nuitOriginalStyle = {
+            opacity: layer.options.opacity,
+            fillOpacity: layer.options.fillOpacity,
+            weight: layer.options.weight,
+          };
+        }
+        const base = layer._nuitOriginalStyle;
+        layer.setStyle({
+          opacity: muted ? Math.max(0.08, (base.opacity || 0.5) * 0.32) : base.opacity,
+          fillOpacity: muted ? Math.max(0.03, (base.fillOpacity || 0.2) * 0.2) : base.fillOpacity,
+          weight: muted ? Math.max(1, (base.weight || 1.5) * 0.85) : base.weight,
+        });
+      } else if (layer.setOpacity) {
+        if (layer._nuitOriginalOpacity === undefined) {
+          layer._nuitOriginalOpacity = 1;
+        }
+        layer.setOpacity(muted ? 0.22 : layer._nuitOriginalOpacity);
+      }
+    });
+  }
+
+  function applyVisualState() {
+    if (!_map) return;
+
+    if (_isCleanMode) {
+      Object.values(_layerGroups).forEach(group => {
+        if (group) _map.removeLayer(group);
+      });
+      document.body.classList.add('clean-mode-on');
+    } else {
+      Object.keys(_layerGroups).forEach(key => {
+        if (_activeLayers.has(key) && _layerGroups[key]) {
+          _layerGroups[key].addTo(_map);
+        } else if (_layerGroups[key]) {
+          _map.removeLayer(_layerGroups[key]);
+        }
+      });
+      document.body.classList.remove('clean-mode-on');
+    }
+
+    const muted = _isRouteFocus && !_isCleanMode;
+    Object.values(_layerGroups).forEach(group => setGroupMuted(group, muted));
+    document.body.classList.toggle('route-focus-active', muted);
+  }
+
+  function setRouteFocus(enabled) {
+    _isRouteFocus = Boolean(enabled);
+    applyVisualState();
+  }
+
+  function setCleanMode(enabled) {
+    _isCleanMode = Boolean(enabled);
+    applyVisualState();
+  }
+
+  function isCleanMode() {
+    return _isCleanMode;
   }
 
   /* ── Zone Detail Panel ──────────────────────────────────────────────── */
@@ -373,21 +565,21 @@ const ExploreLayers = (() => {
         <div class="zd-stat">
           <div class="zd-stat-icon" style="background:rgba(239,68,68,0.12);color:#ef4444">🚨</div>
           <div class="zd-stat-content">
-            <div class="zd-stat-value">${z.crime_count}</div>
-            <div class="zd-stat-label">Crime Incidents</div>
+            <div class="zd-stat-value">${toNumber(z.crime_index, 0)}<span class="zd-stat-unit">/100</span></div>
+            <div class="zd-stat-label">Crime Index</div>
           </div>
         </div>
         <div class="zd-stat">
           <div class="zd-stat-icon" style="background:rgba(251,191,36,0.12);color:#fbbf24">💡</div>
           <div class="zd-stat-content">
-            <div class="zd-stat-value">${z.faulty_lights}<span class="zd-stat-unit">/${z.total_lights}</span></div>
+            <div class="zd-stat-value">${toNumber(z.faulty_lights_pct, faultyPct).toFixed(1)}<span class="zd-stat-unit">%</span></div>
             <div class="zd-stat-label">Faulty Lights</div>
           </div>
         </div>
         <div class="zd-stat">
           <div class="zd-stat-icon" style="background:rgba(99,102,241,0.12);color:#818cf8">📊</div>
           <div class="zd-stat-content">
-            <div class="zd-stat-value">${z.combined_risk}<span class="zd-stat-unit">%</span></div>
+            <div class="zd-stat-value">${toNumber(z.combined_risk_rounded, Math.round(z.combined_risk))}<span class="zd-stat-unit">%</span></div>
             <div class="zd-stat-label">Combined Risk</div>
           </div>
         </div>
@@ -469,5 +661,13 @@ const ExploreLayers = (() => {
     }
   }
 
-  return { init, showZoneDetail, loadDetailedZones, renderAllLayers };
+  return {
+    init,
+    showZoneDetail,
+    loadDetailedZones,
+    renderAllLayers,
+    setRouteFocus,
+    setCleanMode,
+    isCleanMode,
+  };
 })();

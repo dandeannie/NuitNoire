@@ -20,6 +20,7 @@
       <li><a href="/explore">Explore</a></li>
       <li><a href="/predict">Predict</a></li>
       <li><a href="/analytics" class="active">Analytics</a></li>
+      <li><a href="/ward-intelligence">Ward Intel</a></li>
       <li><a href="/report">Report</a></li>
       <li><a href="/about">About</a></li>
     </ul>
@@ -53,12 +54,30 @@
               <option value="low">Low Risk</option>
             </select>
           </div>
+          <button id="analytics-reset-filters" class="btn btn-ghost btn-sm" type="button">Reset</button>
         </div>
       </div>
+
+      <div class="analytics-filter-status" id="analytics-filter-status">Showing all zones</div>
 
       <!-- ═══ KPI ROW ═══ -->
       <div class="kpi-row" id="kpi-row">
         <!-- Filled by JS -->
+      </div>
+
+      <div class="analytics-story-row" id="analytics-story-row">
+        <div class="analytics-story-card">
+          <h3>City Pulse</h3>
+          <p id="city-pulse-text">Loading pulse summary...</p>
+        </div>
+        <div class="analytics-story-card">
+          <h3>Watchlist Areas</h3>
+          <ul id="watchlist-areas" class="analytics-mini-list"></ul>
+        </div>
+        <div class="analytics-story-card">
+          <h3>Safer Areas</h3>
+          <ul id="safer-areas" class="analytics-mini-list"></ul>
+        </div>
       </div>
 
       <!-- ═══ MAIN GRID: 3-column layout ═══ -->
@@ -107,7 +126,7 @@
           <div class="dash-card dash-card-wide">
             <div class="dash-card-header">
               <h3>Incident Trend by Hour</h3>
-              <span class="dash-card-badge badge-danger">Peak: 01:00 AM</span>
+              <span class="dash-card-badge badge-danger" id="hourly-peak-badge">Peak: --:--</span>
             </div>
             <div class="chart-container-lg">
               <canvas id="chart-hourly"></canvas>
@@ -117,7 +136,7 @@
           <!-- Horizontal Bar — Top 10 Dangerous Zones -->
           <div class="dash-card dash-card-wide">
             <div class="dash-card-header">
-              <h3>Top 10 Most Dangerous Zones</h3>
+              <h3>Top 10 Most Dangerous Areas</h3>
             </div>
             <div class="chart-container-lg">
               <canvas id="chart-zones-bar"></canvas>

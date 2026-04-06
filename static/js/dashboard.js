@@ -681,6 +681,12 @@ function initParticles(canvas) {
    ══════════════════════════════════════════════════════════════════════════ */
 let predictTimeout = null;
 let predictZonesList = [];
+let analyticsFiltersBound = false;
+
+const analyticsState = {
+  insights: null,
+  zones: [],
+};
 
 function initPredict() {
   const zoneSel   = document.getElementById('p-zone');
@@ -698,9 +704,10 @@ function initPredict() {
       zoneSel.innerHTML = '<option value="">— Select your area —</option>';
       predictZonesList.forEach(z => {
         const opt = document.createElement('option');
-        opt.value = z.name;
+        opt.value = z.zone_name || z.name;
         const dot = z.risk === 'high' ? '🔴' : z.risk === 'medium' ? '🟡' : '🟢';
         opt.textContent = `${dot} ${z.name}`;
+        opt.dataset.display = z.name;
         opt.dataset.lighting = z.lighting || '';
         opt.dataset.traffic = z.traffic || '';
         opt.dataset.accidents = z.accidents || '';
@@ -752,7 +759,13 @@ function initPredict() {
       pos => {
         const nearest = findNearestPredictZone(pos.coords.latitude, pos.coords.longitude);
         if (nearest) {
-          zoneSel.value = nearest.name;
+          zoneSel.value = nearest.zone_name || nearest.name;
+          if (!zoneSel.value) {
+            const match = Array.from(zoneSel.options).find(
+              (opt) => (opt.dataset.display || '').trim().toLowerCase() === String(nearest.name || '').trim().toLowerCase()
+            );
+            if (match) zoneSel.value = match.value;
+          }
           updateSlidersFromZone();
           Nuit.toast(`Located near ${nearest.name}`, 'success');
           doZonePredict(resultBox);
@@ -768,7 +781,7 @@ function initPredict() {
   function fallbackPredict() {
     // Default to first zone or just do a manual prediction
     if (predictZonesList.length) {
-      zoneSel.value = predictZonesList[0].name;
+      zoneSel.value = predictZonesList[0].zone_name || predictZonesList[0].name;
       updateSlidersFromZone();
       doZonePredict(resultBox);
     } else {
@@ -777,7 +790,7 @@ function initPredict() {
   }
 
   function updateSlidersFromZone() {
-    const zone = predictZonesList.find(z => z.name === zoneSel.value);
+    const zone = predictZonesList.find(z => (z.zone_name || z.name) === zoneSel.value);
     if (!zone) return;
     const lightEl = document.getElementById('p-lighting');
     const traffEl = document.getElementById('p-traffic');
@@ -803,6 +816,8 @@ async function doZonePredict(container) {
   const zoneSel = document.getElementById('p-zone');
   const timeEl  = document.getElementById('p-time');
   if (!zoneSel || !zoneSel.value) return;
+  const selectedOpt = zoneSel.options[zoneSel.selectedIndex];
+  const zoneLabel = selectedOpt ? (selectedOpt.dataset.display || selectedOpt.textContent.replace(/^[🔴🟡🟢]\s*/, '')) : zoneSel.value;
 
   try {
     const res = await fetch('/api/zone-predict', {
@@ -812,7 +827,7 @@ async function doZonePredict(container) {
     });
     const data = await res.json();
     if (data.error) { Nuit.toast(data.error, 'error'); return; }
-    renderGaugeResult(data, container, zoneSel.value);
+    renderGaugeResult(data, container, zoneLabel);
   } catch {
     // silent
   }
@@ -1079,38 +1094,246 @@ async function updateReportStatus(id, status) {
    ANALYTICS PAGE — Professional Dashboard with KPIs, Donuts, Map, Charts
    ══════════════════════════════════════════════════════════════════════════ */
 function initAnalytics() {
-  // Load all data
   Promise.all([
     fetch('/api/insights-data').then(r => r.json()),
-    fetch('/api/risk-zones').then(r => r.json()),
+    fetch('/api/zones-detail').then(r => r.json()),
   ]).then(([data, zonesData]) => {
     const isLight = document.documentElement.getAttribute('data-theme') === 'light';
     Chart.defaults.color = isLight ? '#475569' : '#94a3b8';
     Chart.defaults.borderColor = isLight ? 'rgba(99,102,241,0.08)' : 'rgba(99,102,241,0.06)';
     Chart.defaults.font.family = 'Inter, sans-serif';
 
-    // KPIs
-    buildKPIRow(data.kpis, data.sparklines);
+    analyticsState.insights = data || {};
+    analyticsState.zones = (zonesData && zonesData.zones) ? zonesData.zones : [];
 
-    // Donut charts
-    buildRiskDonut(data.risk_distribution, data.kpis);
-    buildLightingDonut(data.lighting_distribution, data.kpis);
+    if (!analyticsFiltersBound) {
+      const timeEl = document.getElementById('filter-time');
+      const riskEl = document.getElementById('filter-risk');
+      const resetBtn = document.getElementById('analytics-reset-filters');
 
-    // Main charts
-    buildHourlyChart(data.hourly_trend);
-    buildZonesHorizontalBar(data.risk_by_zone);
-    buildLightingChart(data.accidents_by_lighting);
-    buildTrafficChart(data.traffic_vs_risk);
-    buildAreaChart(data.area_distribution);
-    buildCrimeLightingCorrelation(data.crime_lighting_correlation);
-    buildLightingCrimeOverlap(data.lighting_crime_overlap);
+      if (timeEl) timeEl.addEventListener('change', applyAnalyticsFilters);
+      if (riskEl) riskEl.addEventListener('change', applyAnalyticsFilters);
+      if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+          if (timeEl) timeEl.value = 'night';
+          if (riskEl) riskEl.value = 'all';
+          applyAnalyticsFilters();
+        });
+      }
+      analyticsFiltersBound = true;
+    }
 
-    // Zone rankings
-    buildZoneRankings(zonesData.zones);
-
-    // Mini map
-    initAnalyticsMap(zonesData.zones);
+    applyAnalyticsFilters();
+  }).catch(() => {
+    Nuit.toast('Failed to load analytics', 'error');
   });
+}
+
+function applyAnalyticsFilters() {
+  const timeFilter = (document.getElementById('filter-time') || {}).value || 'night';
+  const riskFilter = (document.getElementById('filter-risk') || {}).value || 'all';
+
+  const zones = [...(analyticsState.zones || [])].filter(z => riskFilter === 'all' ? true : z.risk === riskFilter);
+  const derived = buildFilteredInsights(analyticsState.insights || {}, zones, timeFilter);
+
+  const statusEl = document.getElementById('analytics-filter-status');
+  if (statusEl) {
+    const riskTxt = riskFilter === 'all' ? 'all risk levels' : `${riskFilter} risk only`;
+    const timeTxt = timeFilter === 'all' ? 'all hours' : (timeFilter === 'late' ? 'late night window' : 'night window');
+    statusEl.textContent = `Showing ${zones.length} zones • ${riskTxt} • ${timeTxt}`;
+  }
+
+  buildKPIRow(derived.kpis, derived.sparklines);
+  buildAnalyticsStory(derived, zones);
+  buildRiskDonut(derived.risk_distribution, derived.kpis);
+  buildLightingDonut(derived.lighting_distribution, derived.kpis);
+  buildHourlyChart(derived.hourly_trend);
+  buildZonesHorizontalBar(derived.risk_by_zone);
+  buildLightingChart(derived.accidents_by_lighting);
+  buildTrafficChart(derived.traffic_vs_risk);
+  buildAreaChart(derived.area_distribution);
+  buildCrimeLightingCorrelation(derived.crime_lighting_correlation);
+  buildLightingCrimeOverlap(derived.lighting_crime_overlap);
+  buildZoneRankings(zones);
+  initAnalyticsMap(zones);
+
+  const zoneBadge = document.getElementById('total-zones-badge');
+  if (zoneBadge) zoneBadge.textContent = `${derived.kpis.total_zones} Zones`;
+  const peakBadge = document.getElementById('hourly-peak-badge');
+  if (peakBadge) peakBadge.textContent = `Peak: ${derived.kpis.peak_hour_label || '--:--'}`;
+}
+
+function buildFilteredInsights(base, zones, timeFilter) {
+  const safeZones = zones || [];
+  const total = safeZones.length || 1;
+  const high = safeZones.filter(z => z.risk === 'high');
+  const medium = safeZones.filter(z => z.risk === 'medium');
+  const low = safeZones.filter(z => z.risk === 'low');
+
+  const avgScore = safeZones.length
+    ? Number((safeZones.reduce((s, z) => s + Number(z.score || 0), 0) / safeZones.length).toFixed(1))
+    : 0;
+
+  const safest = safeZones.length ? [...safeZones].sort((a, b) => a.score - b.score)[0].name : '-';
+  const dangerous = safeZones.length ? [...safeZones].sort((a, b) => b.score - a.score)[0].name : '-';
+
+  const hourRaw = (base.hourly_trend && base.hourly_trend.values) ? base.hourly_trend.values : [];
+  const hourLabelsRaw = (base.hourly_trend && base.hourly_trend.labels) ? base.hourly_trend.labels : [];
+  const timeKeep = (h) => {
+    if (timeFilter === 'all') return true;
+    if (timeFilter === 'late') return h >= 23 || h <= 3;
+    return h >= 20 || h <= 5;
+  };
+  const filteredHours = [];
+  for (let i = 0; i < hourLabelsRaw.length; i += 1) {
+    const hh = parseInt(String(hourLabelsRaw[i]).replace(/[^0-9]/g, ''), 10);
+    if (Number.isFinite(hh) && timeKeep(hh)) {
+      filteredHours.push({ label: hourLabelsRaw[i], hour: hh, value: Number(hourRaw[i] || 0) });
+    }
+  }
+  const hourlyLabels = filteredHours.map(h => h.label);
+  const hourlyValues = filteredHours.map(h => h.value);
+  const peakIndex = hourlyValues.length ? hourlyValues.indexOf(Math.max(...hourlyValues)) : 0;
+  const peakHourNum = filteredHours.length ? filteredHours[peakIndex].hour : 0;
+
+  const riskByZoneSorted = [...safeZones].sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+
+  const lightBuckets = [0, 0, 0, 0, 0];
+  const accByLight = [0, 0, 0, 0, 0];
+  const trafficBins = {
+    high: [0, 0, 0, 0, 0],
+    medium: [0, 0, 0, 0, 0],
+    low: [0, 0, 0, 0, 0],
+  };
+  const areaMap = {};
+  const corr = { labels: [], lighting: [], risk_scores: [], colors: [] };
+
+  safeZones.forEach((z) => {
+    const lighting = Number(z.lighting || 0);
+    const traffic = Number(z.traffic || 0);
+    const score = Number(z.score || 0);
+    const accidents = Number(z.accident_count || z.accidents || 0);
+
+    const li = Math.min(4, Math.max(0, Math.floor(lighting * 5)));
+    lightBuckets[li] += 1;
+    accByLight[li] += accidents;
+
+    const ti = traffic < 0.2 ? 0 : traffic < 0.4 ? 1 : traffic < 0.6 ? 2 : traffic < 0.8 ? 3 : 4;
+    trafficBins[z.risk || 'low'][ti] += 1;
+
+    const area = String(z.area || 'urban').toLowerCase();
+    if (!areaMap[area]) areaMap[area] = { high: 0, medium: 0, low: 0, total: 0 };
+    areaMap[area].total += 1;
+    areaMap[area][z.risk || 'low'] += 1;
+
+    corr.labels.push(z.name);
+    corr.lighting.push(lighting);
+    corr.risk_scores.push(score);
+    corr.colors.push(z.risk || 'low');
+  });
+
+  const areaLabels = Object.keys(areaMap).map(a => a.charAt(0).toUpperCase() + a.slice(1));
+  const areaHigh = [];
+  const areaMedium = [];
+  const areaLow = [];
+  Object.keys(areaMap).forEach((a) => {
+    const t = Math.max(1, areaMap[a].total);
+    areaHigh.push(Math.round((areaMap[a].high / t) * 100));
+    areaMedium.push(Math.round((areaMap[a].medium / t) * 100));
+    areaLow.push(Math.round((areaMap[a].low / t) * 100));
+  });
+
+  const poorHigh = safeZones.filter(z => Number(z.lighting || 0) < 0.3 && Number(z.score || 0) > 50);
+  const poorMed = safeZones.filter(z => Number(z.lighting || 0) < 0.3 && Number(z.score || 0) >= 30 && Number(z.score || 0) <= 50);
+  const poorLow = safeZones.filter(z => Number(z.lighting || 0) < 0.3 && Number(z.score || 0) < 30);
+  const goodHigh = safeZones.filter(z => Number(z.lighting || 0) >= 0.3 && Number(z.score || 0) > 50);
+  const goodMed = safeZones.filter(z => Number(z.lighting || 0) >= 0.3 && Number(z.score || 0) >= 30 && Number(z.score || 0) <= 50);
+  const goodLow = safeZones.filter(z => Number(z.lighting || 0) >= 0.3 && Number(z.score || 0) < 30);
+
+  return {
+    kpis: {
+      total_zones: safeZones.length,
+      high_risk: high.length,
+      medium_risk: medium.length,
+      low_risk: low.length,
+      avg_score: avgScore,
+      total_incidents: Number((base.kpis || {}).total_incidents || 0),
+      peak_hour: peakHourNum,
+      peak_hour_label: `${String(peakHourNum).padStart(2, '0')}:00`,
+      safest_zone: safest,
+      most_dangerous: dangerous,
+    },
+    sparklines: {
+      incidents: hourlyValues.slice(-12),
+      high_risk: [high.length, high.length, high.length + 1, high.length, high.length],
+      avg_score: [Math.max(0, avgScore - 3), Math.max(0, avgScore - 1.5), avgScore],
+    },
+    risk_distribution: {
+      labels: ['High Risk', 'Medium Risk', 'Low Risk'],
+      values: [high.length, medium.length, low.length],
+    },
+    lighting_distribution: {
+      labels: ['Very Dark (0-0.2)', 'Dim (0.2-0.4)', 'Moderate (0.4-0.6)', 'Well Lit (0.6-0.8)', 'Bright (0.8-1.0)'],
+      values: lightBuckets,
+    },
+    risk_by_zone: {
+      labels: riskByZoneSorted.slice(0, 10).map(z => z.name),
+      scores: riskByZoneSorted.slice(0, 10).map(z => Number(z.score || 0)),
+      risks: riskByZoneSorted.slice(0, 10).map(z => z.risk),
+    },
+    hourly_trend: {
+      labels: hourlyLabels,
+      values: hourlyValues,
+    },
+    accidents_by_lighting: {
+      labels: ['0-0.2', '0.2-0.4', '0.4-0.6', '0.6-0.8', '0.8-1.0'],
+      values: accByLight,
+    },
+    traffic_vs_risk: {
+      labels: ['0-0.2', '0.2-0.4', '0.4-0.6', '0.6-0.8', '0.8-1.0'],
+      high: trafficBins.high,
+      medium: trafficBins.medium,
+      low: trafficBins.low,
+    },
+    area_distribution: {
+      labels: areaLabels,
+      high: areaHigh,
+      medium: areaMedium,
+      low: areaLow,
+    },
+    crime_lighting_correlation: corr,
+    lighting_crime_overlap: {
+      poor_light_high_crime: poorHigh.length,
+      poor_light_medium_crime: poorMed.length,
+      poor_light_low_crime: poorLow.length,
+      adequate_light_high_crime: goodHigh.length,
+      adequate_light_medium_crime: goodMed.length,
+      adequate_light_low_crime: goodLow.length,
+      zones_poor_light_high_crime: poorHigh.map(z => z.name),
+    },
+  };
+}
+
+function buildAnalyticsStory(data, zones) {
+  const pulseEl = document.getElementById('city-pulse-text');
+  const watchEl = document.getElementById('watchlist-areas');
+  const safeEl = document.getElementById('safer-areas');
+  if (!pulseEl || !watchEl || !safeEl) return;
+
+  const k = data.kpis || {};
+  const trend = (data.hourly_trend && data.hourly_trend.values) ? data.hourly_trend.values : [];
+  const trendPeak = trend.length ? Math.max(...trend) : 0;
+  const avg = Number(k.avg_score || 0);
+  const mood = avg >= 60 ? 'elevated' : avg >= 40 ? 'moderate' : 'controlled';
+
+  pulseEl.textContent = `City risk is currently ${mood}. Peak pressure appears around ${k.peak_hour_label || 'late night'} with ${trendPeak} incidents at max hourly load.`;
+
+  const sorted = [...(zones || [])].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const watch = sorted.slice(0, 4);
+  const safe = sorted.slice(-4).reverse();
+
+  watchEl.innerHTML = watch.map(z => `<li><span class="dot danger"></span>${Nuit.escapeHtml(z.name)} · Score ${z.score}</li>`).join('');
+  safeEl.innerHTML = safe.map(z => `<li><span class="dot safe"></span>${Nuit.escapeHtml(z.name)} · Score ${z.score}</li>`).join('');
 }
 
 /* ── KPI Row ───────────────────────────────────────────────────────────── */
@@ -1247,6 +1470,8 @@ function drawSparkline(canvasId, data, colorName) {
 function buildRiskDonut(d, kpis) {
   const ctx = document.getElementById('chart-risk-donut');
   if (!ctx) return;
+  const prev = Chart.getChart(ctx);
+  if (prev) prev.destroy();
 
   new Chart(ctx, {
     type: 'doughnut',
@@ -1281,6 +1506,8 @@ function buildRiskDonut(d, kpis) {
 function buildLightingDonut(d, kpis) {
   const ctx = document.getElementById('chart-lighting-donut');
   if (!ctx) return;
+  const prev = Chart.getChart(ctx);
+  if (prev) prev.destroy();
 
   const colors = ['#ef4444', '#f97316', '#fbbf24', '#34d399', '#22d3ee'];
 
@@ -1331,6 +1558,8 @@ function donutOpts() {
 function buildZonesHorizontalBar(d) {
   const ctx = document.getElementById('chart-zones-bar');
   if (!ctx) return;
+  const prev = Chart.getChart(ctx);
+  if (prev) prev.destroy();
 
   const bgColors = d.risks.map(r =>
     r === 'high' ? 'rgba(248,113,113,0.7)' :
@@ -1389,6 +1618,8 @@ function buildZonesHorizontalBar(d) {
 function buildHourlyChart(d) {
   const ctx = document.getElementById('chart-hourly');
   if (!ctx) return;
+  const prev = Chart.getChart(ctx);
+  if (prev) prev.destroy();
 
   new Chart(ctx, {
     type: 'line',
@@ -1414,6 +1645,8 @@ function buildHourlyChart(d) {
 function buildLightingChart(d) {
   const ctx = document.getElementById('chart-lighting');
   if (!ctx) return;
+  const prev = Chart.getChart(ctx);
+  if (prev) prev.destroy();
 
   new Chart(ctx, {
     type: 'bar',
@@ -1435,6 +1668,8 @@ function buildLightingChart(d) {
 function buildTrafficChart(d) {
   const ctx = document.getElementById('chart-traffic');
   if (!ctx) return;
+  const prev = Chart.getChart(ctx);
+  if (prev) prev.destroy();
   new Chart(ctx, {
     type: 'bar',
     data: {
@@ -1458,6 +1693,8 @@ function buildTrafficChart(d) {
 function buildAreaChart(d) {
   const ctx = document.getElementById('chart-area');
   if (!ctx) return;
+  const prev = Chart.getChart(ctx);
+  if (prev) prev.destroy();
   new Chart(ctx, {
     type: 'doughnut',
     data: {
@@ -1485,6 +1722,8 @@ function buildAreaChart(d) {
 function buildCrimeLightingCorrelation(d) {
   const ctx = document.getElementById('chart-crime-lighting-correlation');
   if (!ctx) return;
+  const prev = Chart.getChart(ctx);
+  if (prev) prev.destroy();
 
   // Create scatter plot data points
   const dataPoints = [];
@@ -1595,6 +1834,8 @@ function buildCrimeLightingCorrelation(d) {
 function buildLightingCrimeOverlap(d) {
   const ctx = document.getElementById('chart-lighting-crime-overlap');
   if (!ctx) return;
+  const prev = Chart.getChart(ctx);
+  if (prev) prev.destroy();
 
   const labels = [
     'Poor Lighting\n& High Crime',
@@ -1743,6 +1984,11 @@ function initAnalyticsMap(zones) {
   const mapEl = document.getElementById('analytics-map');
   if (!mapEl) return;
 
+  if (window._analyticsMap) {
+    window._analyticsMap.remove();
+    window._analyticsMap = null;
+  }
+
   const map = L.map('analytics-map', {
     center: [19.076, 72.8777],
     zoom: 11,
@@ -1757,6 +2003,7 @@ function initAnalyticsMap(zones) {
   window._analyticsTileLayer = L.tileLayer(tileUrl, {
     maxZoom: 18,
   }).addTo(map);
+  window._analyticsMap = map;
 
   zones.forEach(z => {
     const color = z.risk === 'high' ? '#f87171' : z.risk === 'medium' ? '#fbbf24' : '#34d399';

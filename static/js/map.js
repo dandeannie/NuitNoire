@@ -16,6 +16,7 @@ const NuitMap = (() => {
   let _map = null;
   let _tileLayer = null;
   const _layers = { zones: null, route: null, markers: null };
+  const _routeAnimTimers = [];
   let _clickMode = null;   // 'start' | 'dest' | null
   let _clickCallbacks = [];
 
@@ -133,13 +134,45 @@ const NuitMap = (() => {
     const dash = opts.dash || null;
     const weight = opts.weight || 4;
 
+    // Draw a subtle casing first so routes stay visible over dense polygons.
+    const casing = L.polyline(coords, {
+      color: opts.casingColor || 'rgba(255,255,255,0.5)',
+      weight: (weight + 3),
+      opacity: opts.casingOpacity || 0.5,
+      lineCap: 'round', lineJoin: 'round',
+      dashArray: dash,
+    });
+    casing.addTo(_layers.route);
+
+    if (opts.glow) {
+      L.polyline(coords, {
+        color: opts.glowColor || color,
+        weight: weight + 10,
+        opacity: opts.glowOpacity || 0.18,
+        lineCap: 'round', lineJoin: 'round',
+      }).addTo(_layers.route);
+    }
+
     const line = L.polyline(coords, {
       color, weight,
       opacity: opts.opacity || 0.85,
-      dashArray: dash,
+      dashArray: dash || (opts.animate ? '14 12' : null),
       lineCap: 'round', lineJoin: 'round',
     });
     line.addTo(_layers.route);
+    line.bringToFront();
+
+    if (opts.animate) {
+      let offset = 0;
+      const timer = setInterval(() => {
+        offset -= 1.4;
+        if (line && line.setStyle) {
+          line.setStyle({ dashOffset: String(offset) });
+        }
+      }, 60);
+      _routeAnimTimers.push(timer);
+    }
+
     return line;
   }
 
@@ -167,6 +200,10 @@ const NuitMap = (() => {
 
   /* ── Utilities ───────────────────────────────────────────────────────── */
   function clearRoutes() {
+    while (_routeAnimTimers.length) {
+      const t = _routeAnimTimers.pop();
+      clearInterval(t);
+    }
     if (_layers.route) _layers.route.clearLayers();
     if (_layers.markers) _layers.markers.clearLayers();
   }

@@ -1,11 +1,13 @@
 # Datasets
 data/*.csv
+data/*.geojson
 
 # Model binary
 model/model.pkl
 
 # Database
 database/*.db
+database/materialized_stats.json
 
 # Python
 __pycache__/

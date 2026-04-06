@@ -19,6 +19,7 @@
       <li><a href="/explore">Explore</a></li>
       <li><a href="/predict">Predict</a></li>
       <li><a href="/analytics">Analytics</a></li>
+      <li><a href="/ward-intelligence">Ward Intel</a></li>
       <li><a href="/report">Report</a></li>
       <li><a href="/about" class="active">About</a></li>
     </ul>
@@ -29,7 +30,7 @@
     <div class="container">
       <div class="section-header">
         <h1>About Nuit Noire</h1>
-        <p>Empowering safer nighttime travel across Mumbai through data science and machine learning.</p>
+        <p>A live, city-aware night safety platform for Mumbai that blends geospatial data, routing intelligence, and community reporting.</p>
       </div>
 
       <div class="about-grid">
@@ -38,17 +39,16 @@
         <div class="card reveal">
           <div class="card-title">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-            Our Mission
+            What Nuit Noire Does
           </div>
           <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.8">
-            <strong style="color:var(--text)">Nuit Noire</strong> ("Dark Night") is an AI-powered
-            nighttime safety platform built for <strong style="color:var(--accent-bright)">Mumbai, Maharashtra</strong>.
-            We combine street lighting data, traffic patterns, and historical accident records
-            to map risk zones and suggest safer travel routes.
+            <strong style="color:var(--text)">Nuit Noire</strong> is a location-first safety system for late-evening and night travel in
+            <strong style="color:var(--accent-bright)">Mumbai</strong>. It helps people assess neighborhood risk, plan safer routes,
+            and understand what is driving risk in each area.
           </p>
           <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.8;margin-top:0.5rem">
-            From Marine Drive to Thane West, we cover 20 neighborhoods — giving citizens
-            the intelligence they need to navigate the city after dark.
+            Instead of showing a static map, the platform continuously fuses ward boundaries, road segment risk,
+            lighting status, incidents, and travel context to generate practical guidance.
           </p>
         </div>
 
@@ -56,60 +56,50 @@
         <div class="card reveal">
           <div class="card-title">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-            How It Works
+            Real-Time Flow
           </div>
           <div class="timeline">
             <div class="timeline-item">
-              <h4>Data Aggregation</h4>
-              <p>Three datasets — accidents, lighting, traffic — collected for Mumbai neighborhoods</p>
+              <h4>1. Data Ingestion</h4>
+              <p>Ward boundaries, road network, incidents, and streetlight datasets are loaded and aligned by geography.</p>
             </div>
             <div class="timeline-item">
-              <h4>Model Training</h4>
-              <p>Random Forest classifier trained on 600 samples with 5 features (99% accuracy)</p>
+              <h4>2. Risk Materialization</h4>
+              <p>Each area gets derived metrics (crime index, faulty-light ratio, road risk, accident signals) and a normalized risk profile.</p>
             </div>
             <div class="timeline-item">
-              <h4>Risk Classification</h4>
-              <p>Each zone scored 0–100 and classified as Low, Medium, or High risk</p>
+              <h4>3. Route Intelligence</h4>
+              <p>Route analysis ranks alternatives by safety, time, and cost with explainable trade-offs.</p>
             </div>
             <div class="timeline-item">
-              <h4>Route Analysis</h4>
-              <p>AI analyzes paths between points and suggests safer alternatives</p>
+              <h4>4. Interactive Exploration</h4>
+              <p>Layered map views (risk, crime, lights, combined, roads) reveal why certain areas are flagged.</p>
             </div>
             <div class="timeline-item">
-              <h4>Citizen Reporting</h4>
-              <p>Community-driven incident reports feed back into the safety ecosystem</p>
+              <h4>5. Feedback Loop</h4>
+              <p>Citizen reports and background refresh keep operational data current for decision support.</p>
             </div>
           </div>
         </div>
 
-        <!-- Coverage -->
+        <!-- Platform Capabilities -->
         <div class="card reveal">
           <div class="card-title">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
-            Mumbai Coverage
+            Core Capabilities
           </div>
-          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.6rem">20 neighborhoods color-coded by risk level:</p>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.6rem">What users can do right now:</p>
           <div class="zone-cloud">
-            <span class="zone-tag risk-low">Marine Drive</span>
-            <span class="zone-tag risk-low">Fort</span>
-            <span class="zone-tag risk-low">Colaba</span>
-            <span class="zone-tag risk-low">Juhu</span>
-            <span class="zone-tag risk-low">Lower Parel</span>
-            <span class="zone-tag risk-low">Bandra West</span>
-            <span class="zone-tag risk-low">Powai</span>
-            <span class="zone-tag risk-medium">Worli</span>
-            <span class="zone-tag risk-medium">Vashi</span>
-            <span class="zone-tag risk-medium">Goregaon</span>
-            <span class="zone-tag risk-medium">Dadar</span>
-            <span class="zone-tag risk-medium">Borivali</span>
-            <span class="zone-tag risk-medium">Thane West</span>
-            <span class="zone-tag risk-medium">Malad West</span>
-            <span class="zone-tag risk-medium">Andheri East</span>
-            <span class="zone-tag risk-high">Ghatkopar</span>
-            <span class="zone-tag risk-high">Vikhroli</span>
-            <span class="zone-tag risk-high">Chembur</span>
-            <span class="zone-tag risk-high">Kurla</span>
-            <span class="zone-tag risk-high">Dharavi</span>
+            <span class="zone-tag risk-low">Location-first route input</span>
+            <span class="zone-tag risk-low">Progressive landmark fallback</span>
+            <span class="zone-tag risk-medium">Ranked route alternatives</span>
+            <span class="zone-tag risk-medium">Route-Only visual preset</span>
+            <span class="zone-tag risk-medium">Analytics View preset</span>
+            <span class="zone-tag risk-medium">Voice route commands</span>
+            <span class="zone-tag risk-high">Ward intelligence deep-dive</span>
+            <span class="zone-tag risk-high">Road corridor risk overlay</span>
+            <span class="zone-tag risk-high">Cache + background refresh</span>
+            <span class="zone-tag risk-high">Incident reporting workflow</span>
           </div>
         </div>
 
@@ -117,42 +107,46 @@
         <div class="card reveal">
           <div class="card-title">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
-            Technology Stack
+            System Stack
           </div>
           <div class="tech-grid">
-            <div class="tech-item"><span class="tech-icon">🐍</span> Flask 3.0</div>
-            <div class="tech-item"><span class="tech-icon">🤖</span> scikit-learn</div>
-            <div class="tech-item"><span class="tech-icon">🗃️</span> SQLite 3</div>
-            <div class="tech-item"><span class="tech-icon">🗺️</span> Leaflet.js</div>
-            <div class="tech-item"><span class="tech-icon">📊</span> Chart.js 4</div>
-            <div class="tech-item"><span class="tech-icon">🎨</span> CSS Variables</div>
+            <div class="tech-item"><span class="tech-icon">🐍</span> Flask API + background refresh jobs</div>
+            <div class="tech-item"><span class="tech-icon">🧠</span> ML-assisted risk scoring + calibrated zone predictor</div>
+            <div class="tech-item"><span class="tech-icon">🗺️</span> GeoJSON ward polygons + road segment graph</div>
+            <div class="tech-item"><span class="tech-icon">📈</span> Chart.js analytics with filter-aware rendering</div>
+            <div class="tech-item"><span class="tech-icon">🛰️</span> Nominatim fallback geocoding + in-memory cache</div>
+            <div class="tech-item"><span class="tech-icon">🔐</span> SQLite-backed reporting + admin workflow</div>
           </div>
         </div>
 
-        <!-- Model Performance — Full Width -->
+        <!-- Data + Governance — Full Width -->
         <div class="card reveal full-width">
           <div class="card-title">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-            Model Performance
+            Data & Reliability Principles
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem">
             <div style="text-align:center;padding:1rem;background:rgba(99,102,241,0.04);border-radius:var(--radius-sm)">
-              <div style="font-size:2rem;font-weight:900;color:var(--success)">99%</div>
-              <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem">Accuracy</div>
+              <div style="font-size:2rem;font-weight:900;color:var(--success)">Live</div>
+              <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem">Background data refresh</div>
             </div>
             <div style="text-align:center;padding:1rem;background:rgba(99,102,241,0.04);border-radius:var(--radius-sm)">
-              <div style="font-size:2rem;font-weight:900;color:var(--accent)">600</div>
-              <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem">Training Samples</div>
+              <div style="font-size:2rem;font-weight:900;color:var(--accent)">Cache</div>
+              <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem">Materialized stats fallback</div>
             </div>
             <div style="text-align:center;padding:1rem;background:rgba(99,102,241,0.04);border-radius:var(--radius-sm)">
-              <div style="font-size:2rem;font-weight:900;color:var(--violet)">200</div>
-              <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem">Decision Trees</div>
+              <div style="font-size:2rem;font-weight:900;color:var(--violet)">Explainable</div>
+              <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem">Risk reasons + route trade-offs</div>
             </div>
             <div style="text-align:center;padding:1rem;background:rgba(99,102,241,0.04);border-radius:var(--radius-sm)">
-              <div style="font-size:2rem;font-weight:900;color:var(--warning)">5</div>
-              <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem">Input Features</div>
+              <div style="font-size:2rem;font-weight:900;color:var(--warning)">Human-in-the-loop</div>
+              <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem">Citizen reports influence safety ops</div>
             </div>
           </div>
+          <p style="font-size:0.83rem;color:var(--text-muted);line-height:1.7;margin-top:1rem">
+            Nuit Noire is a decision-support tool, not an enforcement system. It is designed to help residents choose safer routes,
+            spot weak infrastructure, and communicate risk hotspots faster.
+          </p>
         </div>
 
       </div>
