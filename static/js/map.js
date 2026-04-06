@@ -63,6 +63,25 @@ const NuitMap = (() => {
         const color = RISK_COLORS[z.risk] || '#94a3b8';
         const radius = RISK_RADII[z.risk] || 400;
 
+        // If ward boundary geometry is available, draw the polygon first.
+        if (z.boundary && z.boundary.type === 'Polygon' && Array.isArray(z.boundary.coordinates)) {
+          const ring = z.boundary.coordinates[0] || [];
+          const latlngs = ring
+            .filter(pt => Array.isArray(pt) && pt.length >= 2)
+            .map(pt => [pt[1], pt[0]]);
+          if (latlngs.length > 2) {
+            const poly = L.polygon(latlngs, {
+              color,
+              weight: 1.5,
+              fillColor: color,
+              fillOpacity: 0.18,
+              opacity: 0.6,
+            });
+            poly.bindPopup(zonePopup(z, color));
+            poly.addTo(_layers.zones);
+          }
+        }
+
         // Outer glow
         L.circle([z.lat, z.lng], {
           radius: radius + 100,

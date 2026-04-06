@@ -7,6 +7,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const map = NuitMap.createMap('explore-map', { zoom: 12 });
   NuitMap.loadRiskZones();
 
+  // Initialize interactive layer system
+  if (typeof ExploreLayers !== 'undefined') {
+    ExploreLayers.init(map);
+  }
+
   // Ensure map resizes correctly on layout changes (responsive stacked mode)
   const mapEl = document.getElementById('explore-map');
   if (mapEl && window.ResizeObserver) {

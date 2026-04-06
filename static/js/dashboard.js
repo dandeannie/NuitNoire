@@ -1102,6 +1102,8 @@ function initAnalytics() {
     buildLightingChart(data.accidents_by_lighting);
     buildTrafficChart(data.traffic_vs_risk);
     buildAreaChart(data.area_distribution);
+    buildCrimeLightingCorrelation(data.crime_lighting_correlation);
+    buildLightingCrimeOverlap(data.lighting_crime_overlap);
 
     // Zone rankings
     buildZoneRankings(zonesData.zones);
@@ -1479,6 +1481,216 @@ function buildAreaChart(d) {
   });
 }
 
+/* ── Crime Rate vs Lighting Quality Correlation ────────────────────────── */
+function buildCrimeLightingCorrelation(d) {
+  const ctx = document.getElementById('chart-crime-lighting-correlation');
+  if (!ctx) return;
+
+  // Create scatter plot data points
+  const dataPoints = [];
+  d.labels.forEach((label, i) => {
+    const color = d.colors[i] === 'high' ? '#f87171' : 
+                  d.colors[i] === 'medium' ? '#fbbf24' : 
+                  '#34d399';
+    dataPoints.push({
+      x: parseFloat(d.lighting[i]),
+      y: d.risk_scores[i],
+      label: label,
+      color: color,
+    });
+  });
+
+  // Create dataset for each color
+  const highRiskData = dataPoints.filter(p => d.colors[d.labels.indexOf(p.label)] === 'high');
+  const mediumRiskData = dataPoints.filter(p => d.colors[d.labels.indexOf(p.label)] === 'medium');
+  const lowRiskData = dataPoints.filter(p => d.colors[d.labels.indexOf(p.label)] === 'low');
+
+  new Chart(ctx, {
+    type: 'bubble',
+    data: {
+      datasets: [
+        {
+          label: 'High Risk Zones',
+          data: highRiskData.map(p => ({ x: p.x, y: p.y })),
+          backgroundColor: 'rgba(248, 113, 113, 0.6)',
+          borderColor: '#f87171',
+          borderWidth: 2,
+          radius: 6,
+          hoverRadius: 9,
+        },
+        {
+          label: 'Medium Risk Zones',
+          data: mediumRiskData.map(p => ({ x: p.x, y: p.y })),
+          backgroundColor: 'rgba(251, 191, 36, 0.6)',
+          borderColor: '#fbbf24',
+          borderWidth: 2,
+          radius: 6,
+          hoverRadius: 9,
+        },
+        {
+          label: 'Low Risk Zones',
+          data: lowRiskData.map(p => ({ x: p.x, y: p.y })),
+          backgroundColor: 'rgba(52, 211, 153, 0.6)',
+          borderColor: '#34d399',
+          borderWidth: 2,
+          radius: 6,
+          hoverRadius: 9,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          position: 'top',
+          labels: { boxWidth: 10, padding: 12, font: { size: 11, weight: '500' } },
+        },
+        tooltip: {
+          backgroundColor: 'rgba(12,12,28,0.95)',
+          padding: 10,
+          cornerRadius: 8,
+          callbacks: {
+            label: function(ctx) {
+              const pointIndex = dataPoints.findIndex(p => p.x === ctx.raw.x && p.y === ctx.raw.y);
+              if (pointIndex !== -1) {
+                return `${dataPoints[pointIndex].label}: Lighting ${ctx.raw.x.toFixed(2)}, Risk ${ctx.raw.y}`;
+              }
+              return `Lighting: ${ctx.raw.x.toFixed(2)}, Risk: ${ctx.raw.y}`;
+            }
+          },
+        },
+      },
+      scales: {
+        x: {
+          type: 'linear',
+          title: {
+            display: true,
+            text: 'Lighting Quality (0 = Dark, 1 = Bright)',
+            font: { size: 12, weight: '500' },
+          },
+          min: 0,
+          max: 1,
+          grid: { color: 'rgba(99,102,241,0.04)' },
+          ticks: { font: { size: 10 } },
+        },
+        y: {
+          title: {
+            display: true,
+            text: 'Crime Risk Score (0-100)',
+            font: { size: 12, weight: '500' },
+          },
+          beginAtZero: true,
+          max: 100,
+          grid: { color: 'rgba(99,102,241,0.04)' },
+          ticks: { font: { size: 10 } },
+        },
+      },
+    },
+  });
+}
+
+/* ── Lighting Crime Overlap ────────────────────────────────────────────── */
+function buildLightingCrimeOverlap(d) {
+  const ctx = document.getElementById('chart-lighting-crime-overlap');
+  if (!ctx) return;
+
+  const labels = [
+    'Poor Lighting\n& High Crime',
+    'Poor Lighting\n& Medium Crime',
+    'Poor Lighting\n& Low Crime',
+    'Good Lighting\n& High Crime',
+    'Good Lighting\n& Medium Crime',
+    'Good Lighting\n& Low Crime',
+  ];
+
+  const values = [
+    d.poor_light_high_crime,
+    d.poor_light_medium_crime,
+    d.poor_light_low_crime,
+    d.adequate_light_high_crime,
+    d.adequate_light_medium_crime,
+    d.adequate_light_low_crime,
+  ];
+
+  const colors = [
+    'rgba(248, 113, 113, 0.75)',  // Poor light + high crime (danger!)
+    'rgba(251, 191, 36, 0.65)',   // Poor light + medium crime
+    'rgba(209, 250, 229, 0.60)',  // Poor light + low crime
+    'rgba(253, 164, 175, 0.65)',  // Good light + high crime
+    'rgba(253, 224, 71, 0.55)',   // Good light + medium crime
+    'rgba(134, 239, 172, 0.65)',  // Good light + low crime
+  ];
+
+  // Update badge with critical count
+  const criticalBadge = document.getElementById('overlap-badge');
+  if (criticalBadge) {
+    const criticalCount = d.poor_light_high_crime;
+    criticalBadge.textContent = `${criticalCount} Critical Area${criticalCount !== 1 ? 's' : ''}`;
+  }
+
+  new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: values,
+        backgroundColor: colors,
+        borderColor: ['#f87171', '#fbbf24', '#a78bfa', '#f97316', '#fcd34d', '#6ee7b7'],
+        borderWidth: 2,
+        borderRadius: 6,
+        borderSkipped: false,
+      }],
+    },
+    options: {
+      indexAxis: 'x',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(12,12,28,0.95)',
+          padding: 10,
+          cornerRadius: 8,
+          callbacks: {
+            label: (ctx) => {
+              const zones = [
+                d.zones_poor_light_high_crime || [],
+                [],
+                [],
+                [],
+                [],
+                [],
+              ];
+              const zoneName = zones[ctx.dataIndex] && zones[ctx.dataIndex].length > 0 
+                ? `Zone${zones[ctx.dataIndex].length > 1 ? 's' : ''}: ${zones[ctx.dataIndex].join(', ')}`
+                : '';
+              return `Count: ${ctx.raw}${zoneName ? ' • ' + zoneName : ''}`;
+            }
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(99,102,241,0.04)' },
+          ticks: { font: { size: 11 } },
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: 'rgba(99,102,241,0.04)' },
+          ticks: { font: { size: 10 } },
+          title: {
+            display: true,
+            text: 'Number of Zones',
+            font: { size: 11, weight: '500' },
+          },
+        },
+      },
+    },
+  });
+}
+
 function chartOpts(yLabel, showLegend = false) {
   return {
     responsive: true,
@@ -1549,6 +1761,23 @@ function initAnalyticsMap(zones) {
   zones.forEach(z => {
     const color = z.risk === 'high' ? '#f87171' : z.risk === 'medium' ? '#fbbf24' : '#34d399';
     const radius = z.risk === 'high' ? 900 : z.risk === 'medium' ? 700 : 500;
+
+    if (z.boundary && z.boundary.type === 'Polygon' && Array.isArray(z.boundary.coordinates)) {
+      const ring = z.boundary.coordinates[0] || [];
+      const latlngs = ring
+        .filter(pt => Array.isArray(pt) && pt.length >= 2)
+        .map(pt => [pt[1], pt[0]]);
+      if (latlngs.length > 2) {
+        L.polygon(latlngs, {
+          color: color,
+          fillColor: color,
+          fillOpacity: 0.16,
+          weight: 1.2,
+          opacity: 0.55,
+        }).addTo(map).bindPopup(`<strong>${z.name}</strong><br>Risk: ${z.score}/100`);
+      }
+    }
+
     L.circle([z.lat, z.lng], {
       radius: radius,
       color: color,

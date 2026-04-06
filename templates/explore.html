@@ -32,6 +32,46 @@
       <!-- Full Map -->
       <div id="explore-map" class="explore-map map-full"></div>
 
+      <!-- ══ Layer Toggle Bar (top-center) ══ -->
+      <div class="layer-toggle-bar" id="layer-toggle-bar">
+        <div class="layer-bar-title">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          Layers
+        </div>
+        <div class="layer-toggle-buttons">
+          <button class="layer-btn active" data-layer="risk" id="layer-risk-btn">
+            <span class="layer-btn-dot" style="background:#f87171"></span>
+            Risk Zones
+          </button>
+          <button class="layer-btn" data-layer="crime" id="layer-crime-btn">
+            <span class="layer-btn-dot" style="background:#ef4444"></span>
+            Crime Hotspots
+          </button>
+          <button class="layer-btn" data-layer="lights" id="layer-lights-btn">
+            <span class="layer-btn-dot" style="background:#fbbf24"></span>
+            Faulty Lights
+          </button>
+          <button class="layer-btn" data-layer="combined" id="layer-combined-btn">
+            <span class="layer-btn-dot" style="background:linear-gradient(135deg,#f87171,#fbbf24)"></span>
+            Combined Risk
+          </button>
+          <button class="layer-btn" data-layer="roads" id="layer-roads-btn">
+            <span class="layer-btn-dot" style="background:#3b82f6"></span>
+            Road Corridors
+          </button>
+        </div>
+      </div>
+
+      <!-- ══ Zone Detail Panel (bottom-right, appears on zone click) ══ -->
+      <div class="zone-detail-panel" id="zone-detail-panel">
+        <button class="zone-detail-close" id="zone-detail-close" aria-label="Close">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+        <div id="zone-detail-content">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
       <!-- Floating Side Panel -->
       <div class="explore-panel">
 
@@ -93,6 +133,7 @@
             <div class="legend-item"><span class="legend-dot" style="background:#34d399"></span> Low Risk — Safe</div>
             <div class="legend-item"><span class="legend-dot" style="background:#fbbf24"></span> Medium Risk — Caution</div>
             <div class="legend-item"><span class="legend-dot" style="background:#f87171"></span> High Risk — Avoid Walking</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#3b82f6"></span> Road Corridor Layer — Segment Risk</div>
           </div>
         </div>
 
@@ -104,6 +145,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="/static/js/map.js"></script>
+  <script src="/static/js/explore-layers.js"></script>
   <script src="/static/js/route.js"></script>
   <script src="/static/js/dashboard.js"></script>
 </body>
