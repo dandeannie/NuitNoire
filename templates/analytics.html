@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nuit Noire — Analytics Dashboard</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body data-page="analytics">
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a href="/" class="navbar-brand">Nuit<span>Noire</span></a>
+    <button class="hamburger" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+    <ul class="nav-links">
+      <li><a href="/">Home</a></li>
+      <li><a href="/explore">Explore</a></li>
+      <li><a href="/predict">Predict</a></li>
+      <li><a href="/analytics" class="active">Analytics</a></li>
+      <li><a href="/report">Report</a></li>
+      <li><a href="/about">About</a></li>
+    </ul>
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">🌙</button>
+  </nav>
+
+  <div class="page">
+    <div class="dash-container">
+
+      <!-- ═══ TOP: Header + Filter Bar ═══ -->
+      <div class="dash-header">
+        <div>
+          <h1 class="dash-title">Night Safety Dashboard</h1>
+          <p class="dash-subtitle">Mumbai metropolitan area · Real-time zone analytics</p>
+        </div>
+        <div class="dash-filters">
+          <div class="dash-filter-group">
+            <label>Time Window</label>
+            <select id="filter-time" class="dash-filter-select">
+              <option value="night">Night (20:00–05:00)</option>
+              <option value="late">Late Night (23:00–03:00)</option>
+              <option value="all">All Hours</option>
+            </select>
+          </div>
+          <div class="dash-filter-group">
+            <label>Risk Level</label>
+            <select id="filter-risk" class="dash-filter-select">
+              <option value="all">All Levels</option>
+              <option value="high">High Risk</option>
+              <option value="medium">Medium Risk</option>
+              <option value="low">Low Risk</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ KPI ROW ═══ -->
+      <div class="kpi-row" id="kpi-row">
+        <!-- Filled by JS -->
+      </div>
+
+      <!-- ═══ MAIN GRID: 3-column layout ═══ -->
+      <div class="dash-grid">
+
+        <!-- LEFT COLUMN — Stacked KPI + Donut Charts -->
+        <div class="dash-col-left">
+
+          <!-- Risk Distribution Donut -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <h3>Risk Distribution</h3>
+              <span class="dash-card-badge" id="total-zones-badge">20 Zones</span>
+            </div>
+            <div class="donut-wrap">
+              <canvas id="chart-risk-donut" width="200" height="200"></canvas>
+              <div class="donut-center" id="donut-center-risk">
+                <span class="donut-value">20</span>
+                <span class="donut-label">Total</span>
+              </div>
+            </div>
+            <div class="donut-legend" id="risk-donut-legend"></div>
+          </div>
+
+          <!-- Lighting Conditions Donut -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <h3>Lighting Conditions</h3>
+            </div>
+            <div class="donut-wrap">
+              <canvas id="chart-lighting-donut" width="200" height="200"></canvas>
+              <div class="donut-center" id="donut-center-lighting">
+                <span class="donut-value">20</span>
+                <span class="donut-label">Zones</span>
+              </div>
+            </div>
+            <div class="donut-legend" id="lighting-donut-legend"></div>
+          </div>
+
+        </div>
+
+        <!-- CENTER COLUMN — Charts -->
+        <div class="dash-col-center">
+
+          <!-- Hourly Trend (large) -->
+          <div class="dash-card dash-card-wide">
+            <div class="dash-card-header">
+              <h3>Incident Trend by Hour</h3>
+              <span class="dash-card-badge badge-danger">Peak: 01:00 AM</span>
+            </div>
+            <div class="chart-container-lg">
+              <canvas id="chart-hourly"></canvas>
+            </div>
+          </div>
+
+          <!-- Horizontal Bar — Top 10 Dangerous Zones -->
+          <div class="dash-card dash-card-wide">
+            <div class="dash-card-header">
+              <h3>Top 10 Most Dangerous Zones</h3>
+            </div>
+            <div class="chart-container-lg">
+              <canvas id="chart-zones-bar"></canvas>
+            </div>
+          </div>
+
+          <!-- Two side-by-side charts -->
+          <div class="dash-chart-row">
+            <div class="dash-card">
+              <div class="dash-card-header">
+                <h3>Accidents by Lighting</h3>
+              </div>
+              <div class="chart-container-sm">
+                <canvas id="chart-lighting"></canvas>
+              </div>
+            </div>
+            <div class="dash-card">
+              <div class="dash-card-header">
+                <h3>Risk by Traffic Density</h3>
+              </div>
+              <div class="chart-container-sm">
+                <canvas id="chart-traffic"></canvas>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN — Map + Zone Rankings -->
+        <div class="dash-col-right">
+
+          <!-- Mini Risk Map -->
+          <div class="dash-card dash-card-map">
+            <div class="dash-card-header">
+              <h3>Risk Heatmap</h3>
+              <span class="dash-card-badge">Live</span>
+            </div>
+            <div id="analytics-map" class="dash-mini-map"></div>
+            <div class="map-legend-row">
+              <span><span class="legend-dot-sm" style="background:#34d399"></span> Safe</span>
+              <span><span class="legend-dot-sm" style="background:#fbbf24"></span> Caution</span>
+              <span><span class="legend-dot-sm" style="background:#f87171"></span> Danger</span>
+            </div>
+          </div>
+
+          <!-- Zone Rankings -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <h3>Zone Rankings</h3>
+            </div>
+            <div id="zone-rankings">
+              <p style="color:var(--text-dim);text-align:center;padding:1rem;font-size:0.8rem">Loading...</p>
+            </div>
+          </div>
+
+          <!-- Area Type Distribution -->
+          <div class="dash-card">
+            <div class="dash-card-header">
+              <h3>Risk by Area Type</h3>
+            </div>
+            <div class="chart-container-sm">
+              <canvas id="chart-area"></canvas>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="/static/js/map.js"></script>
+  <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

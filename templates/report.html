@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nuit Noire — Report Incident</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body data-page="report">
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a href="/" class="navbar-brand">Nuit<span>Noire</span></a>
+    <button class="hamburger" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+    <ul class="nav-links">
+      <li><a href="/">Home</a></li>
+      <li><a href="/explore">Explore</a></li>
+      <li><a href="/predict">Predict</a></li>
+      <li><a href="/analytics">Analytics</a></li>
+      <li><a href="/report" class="active">Report</a></li>
+      <li><a href="/about">About</a></li>
+    </ul>
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">🌙</button>
+  </nav>
+
+  <div class="page">
+    <div class="container">
+      <div class="section-header">
+        <h1>Report an Incident</h1>
+        <p>Help make Mumbai safer — report broken lights, unsafe roads, or suspicious activity.</p>
+      </div>
+
+      <div class="report-layout">
+
+        <!-- Report Form -->
+        <div class="card">
+          <div class="card-title">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Submit Report
+          </div>
+
+          <!-- Success state -->
+          <div id="report-success" class="success-state">
+            <div class="success-check">✓</div>
+            <h3 style="font-size:1.1rem;margin-bottom:0.4rem">Report Submitted!</h3>
+            <p style="font-size:0.85rem;color:var(--text-muted)">Thank you for helping keep Mumbai safe.</p>
+          </div>
+
+          <form id="report-form">
+            <div class="form-group">
+              <label class="form-label">Location Name</label>
+              <input type="text" id="r-location" class="form-control" placeholder="e.g. Near Dadar Station" required>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Latitude <span style="opacity:0.5">(optional)</span></label>
+                <input type="number" step="any" id="r-lat" class="form-control" placeholder="19.0178">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Longitude <span style="opacity:0.5">(optional)</span></label>
+                <input type="number" step="any" id="r-lng" class="form-control" placeholder="72.8478">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Issue Type</label>
+              <select id="r-issue" class="form-control" required>
+                <option value="">— Select Issue —</option>
+                <option value="broken_light">🔦 Broken Street Light</option>
+                <option value="suspicious_activity">👁️ Suspicious Activity</option>
+                <option value="unsafe_road">🚧 Unsafe Road Condition</option>
+                <option value="other">📝 Other</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Description</label>
+              <textarea id="r-desc" class="form-control" rows="3" placeholder="Describe the issue..."></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-block">Submit Report</button>
+          </form>
+        </div>
+
+        <!-- Admin Panel -->
+        <div class="card">
+          <div class="card-title">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.59 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+            Admin Dashboard
+          </div>
+
+          <!-- Login -->
+          <div id="admin-login-wrap">
+            <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.75rem">
+              Authorized personnel only
+            </p>
+            <form id="admin-login-form">
+              <div class="form-group">
+                <label class="form-label">Username</label>
+                <input type="text" id="a-user" class="form-control" autocomplete="username" placeholder="admin">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Password</label>
+                <input type="password" id="a-pass" class="form-control" autocomplete="current-password" placeholder="••••••••">
+              </div>
+              <button type="submit" class="btn btn-outline btn-block">Authenticate</button>
+            </form>
+          </div>
+
+          <!-- Admin Content -->
+          <div id="admin-panel" style="display:none">
+            <div class="stat-cards">
+              <div class="stat-card accent">
+                <div class="num" id="stat-total">0</div>
+                <div class="label">Total</div>
+              </div>
+              <div class="stat-card danger">
+                <div class="num" id="stat-pending">0</div>
+                <div class="label">Pending</div>
+              </div>
+              <div class="stat-card warning">
+                <div class="num" id="stat-investigating">0</div>
+                <div class="label">Investigating</div>
+              </div>
+              <div class="stat-card success">
+                <div class="num" id="stat-resolved">0</div>
+                <div class="label">Resolved</div>
+              </div>
+            </div>
+
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th><th>Location</th><th>Issue</th>
+                    <th>Date</th><th>Status</th><th>Action</th>
+                  </tr>
+                </thead>
+                <tbody id="reports-tbody">
+                  <tr><td colspan="6" style="text-align:center;color:var(--text-dim);padding:1.5rem">Login to view reports</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">Nuit Noire &copy; 2026 — AI-Powered Night Safety</footer>
+  <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

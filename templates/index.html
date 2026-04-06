@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nuit Noire — Night Safety Intelligence for Mumbai</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body data-page="home">
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a href="/" class="navbar-brand">Nuit<span>Noire</span></a>
+    <button class="hamburger" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+    <ul class="nav-links">
+      <li><a href="/" class="active">Home</a></li>
+      <li><a href="/explore">Explore</a></li>
+      <li><a href="/predict">Predict</a></li>
+      <li><a href="/analytics">Analytics</a></li>
+      <li><a href="/report">Report</a></li>
+      <li><a href="/about">About</a></li>
+    </ul>
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">🌙</button>
+  </nav>
+
+  <div class="page">
+
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-bg">
+        <canvas id="hero-canvas"></canvas>
+      </div>
+      <div class="hero-glow"></div>
+
+      <div class="hero-content">
+        <h1>Navigate Mumbai's<br><span class="accent-text">Darkest Hours</span> Safely</h1>
+        <p class="subtitle">
+          AI-powered risk intelligence mapping 20 neighborhoods across Mumbai — helping you find safer routes after dark.
+        </p>
+        <div class="hero-actions">
+          <a href="/explore" class="btn btn-primary">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.447 2.724A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+            Explore Map
+          </a>
+          <a href="/predict" class="btn btn-outline">Try AI Predictor</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features-section">
+      <div class="section-title">
+        <h2>How Nuit Noire Keeps You Safe</h2>
+        <p>Four layers of intelligence working together</p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card reveal">
+          <div class="feature-icon">🗺️</div>
+          <h3>Interactive Risk Map</h3>
+          <p>20 Mumbai neighborhoods visualized with color-coded risk zones on a dark-themed interactive map. Click any zone for details.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon">🛤️</div>
+          <h3>Smart Route Planner</h3>
+          <p>Click two points on the map and get AI-analyzed safe route alternatives with detailed risk breakdowns.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon">🧠</div>
+          <h3>ML Risk Predictor</h3>
+          <p>Random Forest model predicts risk in real-time as you adjust lighting, traffic, time, and area parameters — no button needed.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon">📊</div>
+          <h3>Visual Analytics</h3>
+          <p>Interactive charts revealing patterns between lighting, traffic density, time of day, and incident frequency.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Stats -->
+    <section class="stats-section">
+      <div class="stats-row">
+        <div class="stat-item reveal">
+          <div class="stat-value" data-count="20">0</div>
+          <div class="stat-label">Zones Monitored</div>
+        </div>
+        <div class="stat-item reveal">
+          <div class="stat-value" data-count="99" data-suffix="%">0</div>
+          <div class="stat-label">Model Accuracy</div>
+        </div>
+        <div class="stat-item reveal">
+          <div class="stat-value" data-count="5">0</div>
+          <div class="stat-label">ML Features</div>
+        </div>
+        <div class="stat-item reveal">
+          <div class="stat-value" data-count="600">0</div>
+          <div class="stat-label">Training Samples</div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <footer class="footer">
+    <strong>Nuit Noire</strong> &copy; 2026 — Night Safety Intelligence for Mumbai, Maharashtra
+  </footer>
+
+  <script src="/static/js/dashboard.js"></script>
+</body>
+</html>

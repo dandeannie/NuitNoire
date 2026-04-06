@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nuit Noire — About</title>
+  <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body data-page="about">
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <a href="/" class="navbar-brand">Nuit<span>Noire</span></a>
+    <button class="hamburger" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+    <ul class="nav-links">
+      <li><a href="/">Home</a></li>
+      <li><a href="/explore">Explore</a></li>
+      <li><a href="/predict">Predict</a></li>
+      <li><a href="/analytics">Analytics</a></li>
+      <li><a href="/report">Report</a></li>
+      <li><a href="/about" class="active">About</a></li>
+    </ul>
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">🌙</button>
+  </nav>
+
+  <div class="page">
+    <div class="container">
+      <div class="section-header">
+        <h1>About Nuit Noire</h1>
+        <p>Empowering safer nighttime travel across Mumbai through data science and machine learning.</p>
+      </div>
+
+      <div class="about-grid">
+
+        <!-- Mission -->
+        <div class="card reveal">
+          <div class="card-title">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+            Our Mission
+          </div>
+          <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.8">
+            <strong style="color:var(--text)">Nuit Noire</strong> ("Dark Night") is an AI-powered
+            nighttime safety platform built for <strong style="color:var(--accent-bright)">Mumbai, Maharashtra</strong>.
+            We combine street lighting data, traffic patterns, and historical accident records
+            to map risk zones and suggest safer travel routes.
+          </p>
+          <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.8;margin-top:0.5rem">
+            From Marine Drive to Thane West, we cover 20 neighborhoods — giving citizens
+            the intelligence they need to navigate the city after dark.
+          </p>
+        </div>
+
+        <!-- How It Works — Timeline -->
+        <div class="card reveal">
+          <div class="card-title">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+            How It Works
+          </div>
+          <div class="timeline">
+            <div class="timeline-item">
+              <h4>Data Aggregation</h4>
+              <p>Three datasets — accidents, lighting, traffic — collected for Mumbai neighborhoods</p>
+            </div>
+            <div class="timeline-item">
+              <h4>Model Training</h4>
+              <p>Random Forest classifier trained on 600 samples with 5 features (99% accuracy)</p>
+            </div>
+            <div class="timeline-item">
+              <h4>Risk Classification</h4>
+              <p>Each zone scored 0–100 and classified as Low, Medium, or High risk</p>
+            </div>
+            <div class="timeline-item">
+              <h4>Route Analysis</h4>
+              <p>AI analyzes paths between points and suggests safer alternatives</p>
+            </div>
+            <div class="timeline-item">
+              <h4>Citizen Reporting</h4>
+              <p>Community-driven incident reports feed back into the safety ecosystem</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Coverage -->
+        <div class="card reveal">
+          <div class="card-title">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/><path d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Mumbai Coverage
+          </div>
+          <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:0.6rem">20 neighborhoods color-coded by risk level:</p>
+          <div class="zone-cloud">
+            <span class="zone-tag risk-low">Marine Drive</span>
+            <span class="zone-tag risk-low">Fort</span>
+            <span class="zone-tag risk-low">Colaba</span>
+            <span class="zone-tag risk-low">Juhu</span>
+            <span class="zone-tag risk-low">Lower Parel</span>
+            <span class="zone-tag risk-low">Bandra West</span>
+            <span class="zone-tag risk-low">Powai</span>
+            <span class="zone-tag risk-medium">Worli</span>
+            <span class="zone-tag risk-medium">Vashi</span>
+            <span class="zone-tag risk-medium">Goregaon</span>
+            <span class="zone-tag risk-medium">Dadar</span>
+            <span class="zone-tag risk-medium">Borivali</span>
+            <span class="zone-tag risk-medium">Thane West</span>
+            <span class="zone-tag risk-medium">Malad West</span>
+            <span class="zone-tag risk-medium">Andheri East</span>
+            <span class="zone-tag risk-high">Ghatkopar</span>
+            <span class="zone-tag risk-high">Vikhroli</span>
+            <span class="zone-tag risk-high">Chembur</span>
+            <span class="zone-tag risk-high">Kurla</span>
+            <span class="zone-tag risk-high">Dharavi</span>
+          </div>
+        </div>
+
+        <!-- Tech Stack -->
+        <div class="card reveal">
+          <div class="card-title">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+            Technology Stack
+          </div>
+          <div class="tech-grid">
+            <div class="tech-item"><span class="tech-icon">🐍</span> Flask 3.0</div>
+            <div class="tech-item"><span class="tech-icon">🤖</span> scikit-learn</div>
+            <div class="tech-item"><span class="tech-icon">🗃️</span> SQLite 3</div>
+            <div class="tech-item"><span class="tech-icon">🗺️</span> Leaflet.js</div>
+            <div class="tech-item"><span class="tech-icon">📊</span> Chart.js 4</div>
+            <div class="tech-item"><span class="tech-icon">🎨</span> CSS Variables</div>
+          </div>
+        </div>
+
+        <!-- Model Performance — Full Width -->
+        <div class="card reveal full-width">
+          <div class="card-title">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            Model Performance
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem">
+            <div style="text-align:center;padding:1rem;background:rgba(99,102,241,0.04);border-radius:var(--radius-sm)">
+              <div style="font-size:2rem;font-weight:900;color:var(--success)">99%</div>
+              <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem">Accuracy</div>
+            </div>
+            <div style="text-align:center;padding:1rem;background:rgba(99,102,241,0.04);border-radius:var(--radius-sm)">
+              <div style="font-size:2rem;font-weight:900;color:var(--accent)">600</div>
+              <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem">Training Samples</div>
+            </div>
+            <div style="text-align:center;padding:1rem;background:rgba(99,102,241,0.04);border-radius:var(--radius-sm)">
+              <div style="font-size:2rem;font-weight:900;color:var(--violet)">200</div>
+              <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem">Decision Trees</div>
+            </div>
+            <div style="text-align:center;padding:1rem;background:rgba(99,102,241,0.04);border-radius:var(--radius-sm)">
+              <div style="font-size:2rem;font-weight:900;color:var(--warning)">5</div>
+              <div style="font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-top:0.2rem">Input Features</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <strong>Nuit Noire</strong> &copy; 2026 — Night Safety Intelligence for Mumbai, Maharashtra
+  </footer>
+  <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
