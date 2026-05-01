@@ -6,7 +6,16 @@
 document.addEventListener('DOMContentLoaded', () => {
   if (document.body.dataset.page !== 'home') return;
 
-  const RISK_COLORS = { low: '#34d399', medium: '#fbbf24', high: '#f87171' };
+  const RISK_COLORS = { 
+    low: '#10b981',      // Emerald green
+    medium: '#f59e0b',   // Amber/orange
+    high: '#ef4444'      // Bright red
+  };
+  const RISK_COLORS_BORDER = {
+    low: '#059669',      // Darker emerald for borders
+    medium: '#d97706',   // Darker amber for borders
+    high: '#dc2626'      // Darker red for borders
+  };
   const RISK_RADII  = { low: 420, medium: 520, high: 650 };
   const MUMBAI = [19.0760, 72.8777];
 
@@ -135,43 +144,46 @@ document.addEventListener('DOMContentLoaded', () => {
     // Render zones
     zones.forEach(z => {
       const color = RISK_COLORS[z.risk] || '#94a3b8';
+      const borderColor = RISK_COLORS_BORDER[z.risk] || '#64748b';
+      const isHighRisk = z.risk === 'high';
+
       const radius = RISK_RADII[z.risk] || 400;
 
-      // Outer glow
-      L.circle([z.lat, z.lng], {
-        radius: radius + 100,
-        color: 'transparent', fillColor: color,
-        fillOpacity: 0.06, weight: 0,
-      }).addTo(homeMap);
-
-      // Main circle
+      // Professional circular risk zone
       const circle = L.circle([z.lat, z.lng], {
-        radius,
-        color, fillColor: color,
-        fillOpacity: 0.18, weight: 1.5, opacity: 0.5,
+        radius: radius,
+        color: borderColor,
+        weight: isHighRisk ? 2.5 : 1.5,
+        fillColor: color,
+        fillOpacity: isHighRisk ? 0.25 : 0.15,
+        opacity: 0.9,
+        lineCap: 'round',
+        lineJoin: 'round',
       });
-
-      // Rich popup
       circle.bindPopup(buildZonePopup(z, color), {
         maxWidth: 280,
         className: 'home-zone-popup',
       });
-
       circle.addTo(homeMap);
 
-      // Center dot
+      // Core anchor point
       L.circleMarker([z.lat, z.lng], {
-        radius: 4, color, fillColor: color,
-        fillOpacity: 0.9, weight: 0,
+        radius: isHighRisk ? 4 : 3,
+        color: borderColor,
+        fillColor: '#ffffff',
+        fillOpacity: 1,
+        weight: 2,
       }).bindPopup(buildZonePopup(z, color), {
         maxWidth: 280,
         className: 'home-zone-popup',
       }).addTo(homeMap);
 
+
+
       // Name label
       L.marker([z.lat, z.lng], {
         icon: L.divIcon({
-          html: `<div class="map-zone-label" style="color:${color}">${z.name}</div>`,
+          html: `<div class="map-zone-label" style="color:${color};font-weight:700">${z.name}</div>`,
           iconSize: [0, 0],
           iconAnchor: [0, -16],
           className: '',
@@ -216,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <span style="font-weight:700">${Math.round(z.lighting * 100)}%</span>
           </div>
           <div style="height:4px;background:rgba(0,0,0,0.08);border-radius:2px;overflow:hidden">
-            <div style="width:${Math.round(z.lighting * 100)}%;height:100%;background:${z.lighting > 0.6 ? '#34d399' : z.lighting > 0.3 ? '#fbbf24' : '#ef4444'};border-radius:2px"></div>
+            <div style="width:${Math.round(z.lighting * 100)}%;height:100%;background:${z.lighting > 0.6 ? '#10b981' : z.lighting > 0.3 ? '#f59e0b' : '#ef4444'};border-radius:2px"></div>
           </div>
         </div>
         <div style="margin-top:8px;text-align:center">

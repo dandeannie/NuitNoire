@@ -21,8 +21,17 @@ const ExploreLayers = (() => {
     roads: null,
   };
 
-  // Colors
-  const RISK_COLORS = { low: '#34d399', medium: '#fbbf24', high: '#f87171' };
+  // Colors - enhanced palette with better visual separation
+  const RISK_COLORS = { 
+    low: '#10b981',      // Emerald green
+    medium: '#f59e0b',   // Amber/orange
+    high: '#ef4444'      // Bright red
+  };
+  const RISK_COLORS_BORDER = {
+    low: '#059669',      // Darker emerald for borders
+    medium: '#d97706',   // Darker amber for borders
+    high: '#dc2626'      // Darker red for borders
+  };
   function toNumber(v, fallback = 0) {
     const n = Number(v);
     return Number.isFinite(n) ? n : fallback;
@@ -150,40 +159,30 @@ const ExploreLayers = (() => {
 
     _zonesData.forEach(z => {
       const color = RISK_COLORS[z.risk] || '#94a3b8';
+      const borderColor = RISK_COLORS_BORDER[z.risk] || '#64748b';
       const radius = RISK_RADII[z.risk] || 400;
+      const isHighRisk = z.risk === 'high';
 
-      addBoundaryPolygon(group, z, {
-        color,
-        weight: 1.15,
-        fillColor: color,
-        fillOpacity: 0.12,
-        opacity: 0.45,
-        smoothFactor: 1.4,
-      });
-
-      // Outer glow
+      // Professional circular risk zone
       L.circle([z.lat, z.lng], {
-        radius: radius + 100,
-        color: 'transparent', fillColor: color,
-        fillOpacity: 0.06, weight: 0,
-      }).addTo(group);
-
-      // Main circle
-      const circle = L.circle([z.lat, z.lng], {
-        radius,
-        color, fillColor: color,
-        fillOpacity: 0.18, weight: 1.5, opacity: 0.5,
-      });
-      circle.on('click', () => showZoneDetail(z));
-      circle.addTo(group);
-
-      // Center dot
-      L.circleMarker([z.lat, z.lng], {
-        radius: 4, color, fillColor: color,
-        fillOpacity: 0.9, weight: 0,
+        radius: radius,
+        color: borderColor,
+        weight: isHighRisk ? 2.5 : 1.5,
+        fillColor: color,
+        fillOpacity: isHighRisk ? 0.25 : 0.15,
+        opacity: 0.9,
+        lineCap: 'round',
+        lineJoin: 'round',
       }).on('click', () => showZoneDetail(z)).addTo(group);
 
-      // Avoid dense permanent labels; keep interaction through click and details panel.
+      // Core anchor point
+      L.circleMarker([z.lat, z.lng], {
+        radius: isHighRisk ? 4 : 3,
+        color: borderColor,
+        fillColor: '#ffffff',
+        fillOpacity: 1,
+        weight: 2,
+      }).on('click', () => showZoneDetail(z)).addTo(group);
     });
   }
 
@@ -193,11 +192,12 @@ const ExploreLayers = (() => {
     group.clearLayers();
 
     const crimeStats = buildStats(_zonesData.map(z => toNumber(z.crime_index, toNumber(z.crime_count, 0))));
+    // Better color progression: low-medium-high distinction
     const crimeBands = [
-      { max: 24, color: '#34d399' },
-      { max: 49, color: '#fde047' },
-      { max: 74, color: '#fb923c' },
-      { max: 100, color: '#ef4444' },
+      { max: 24, color: '#10b981' },   // Emerald green - safe
+      { max: 49, color: '#84cc16' },   // Lime - moderate
+      { max: 74, color: '#f59e0b' },   // Amber - elevated
+      { max: 100, color: '#ef4444' },  // Red - high danger
     ];
 
     _zonesData.forEach(z => {
@@ -205,34 +205,27 @@ const ExploreLayers = (() => {
       const crimeIndex = toNumber(z.crime_index, 0);
       const unit = unitScale(crimeIndex, crimeStats.min, crimeStats.max);
       const color = colorByBand(crimeIndex, crimeBands, '#ef4444');
-      const radius = radiusFromUnit(unit, 180, 430);
-      const intensity = 0.14 + unit * 0.38;
-
-      addBoundaryPolygon(group, z, {
-        color,
-        weight: 1.4,
-        fillColor: color,
-        fillOpacity: intensity,
-        opacity: 0.72,
-      });
+      const borderColor = color;
 
       L.circle([z.lat, z.lng], {
-        radius,
-        color, fillColor: color,
-        fillOpacity: 0.12 + unit * 0.18,
+        radius: 450,
+        color: borderColor,
         weight: 1.5,
-        opacity: 0.55,
+        fillColor: color,
+        fillOpacity: 0.15 + unit * 0.15,
+        opacity: 0.85,
       }).on('click', () => showZoneDetail(z)).addTo(group);
 
-      if (unit >= 0.45) {
+      // Only show labels for high crime areas
+      if (unit >= 0.5) {
         L.marker([z.lat, z.lng], {
           icon: L.divIcon({
-            html: `<div class="map-crime-marker" style="border-color:${color}88;color:${color}">
+            html: `<div class="map-crime-marker" style="border-color:${color}88;color:${color};font-weight:700">
               <span class="crime-count">${crimeIndex}</span>
-              <span class="crime-label">crime idx</span>
+              <span class="crime-label">crime</span>
             </div>`,
-            iconSize: [52, 30],
-            iconAnchor: [26, 15],
+            iconSize: [48, 28],
+            iconAnchor: [24, 14],
             className: '',
           }),
         }).on('click', () => showZoneDetail(z)).addTo(group);
@@ -247,11 +240,12 @@ const ExploreLayers = (() => {
 
     const faultyPctValues = _zonesData.map(z => toNumber(z.faulty_lights_pct, 0));
     const lightStats = buildStats(faultyPctValues);
+    // Better color progression for streetlights
     const lightsBands = [
-      { max: 25, color: '#10b981' },
-      { max: 45, color: '#84cc16' },
-      { max: 60, color: '#fbbf24' },
-      { max: 100, color: '#ef4444' },
+      { max: 20, color: '#10b981' },   // Emerald - excellent
+      { max: 40, color: '#84cc16' },   // Lime - good
+      { max: 60, color: '#f59e0b' },   // Amber - needs attention
+      { max: 100, color: '#ef4444' },  // Red - critical
     ];
 
     _zonesData.forEach(z => {
@@ -260,42 +254,27 @@ const ExploreLayers = (() => {
       const faultyPctDisplay = Math.round(toNumber(z.faulty_lights_pct, totalLights > 0 ? (faultyLights / totalLights) * 100 : 0));
       const unit = unitScale(faultyPctDisplay, lightStats.min, lightStats.max);
       const color = colorByBand(faultyPctDisplay, lightsBands, '#ef4444');
-      const radius = radiusFromUnit(unit, 170, 360);
-
-      addBoundaryPolygon(group, z, {
-        color,
-        weight: 1.3,
-        fillColor: color,
-        fillOpacity: 0.14 + unit * 0.34,
-        opacity: 0.72,
-      });
-
-      if (unit >= 0.7) {
-        L.circle([z.lat, z.lng], {
-          radius: radius + 40,
-          color: 'transparent', fillColor: color,
-          fillOpacity: 0.08, weight: 0,
-        }).addTo(group);
-      }
+      const borderColor = color;
 
       L.circle([z.lat, z.lng], {
-        radius,
-        color, fillColor: color,
-        fillOpacity: 0.12 + unit * 0.15,
-        weight: 1.3,
-        opacity: 0.52,
+        radius: 450,
+        color: borderColor,
+        weight: 1.5,
+        fillColor: color,
+        fillOpacity: 0.15 + unit * 0.20,
+        opacity: 0.85,
       }).on('click', () => showZoneDetail(z)).addTo(group);
 
-      if (unit >= 0.35) {
+      if (unit >= 0.4) {
         const icon = unit >= 0.75 ? '⚠' : (unit >= 0.5 ? '◐' : '○');
         L.marker([z.lat, z.lng], {
           icon: L.divIcon({
-            html: `<div class="map-light-marker" style="border-color:${color}88;color:${color}">
+            html: `<div class="map-light-marker" style="border-color:${color}88;color:${color};font-weight:700">
               <span class="light-icon">${icon}</span>
-              <span class="light-info">${faultyPctDisplay}% bad</span>
+              <span class="light-info">${faultyPctDisplay}%</span>
             </div>`,
-            iconSize: [64, 28],
-            iconAnchor: [32, 14],
+            iconSize: [56, 26],
+            iconAnchor: [28, 13],
             className: '',
           }),
         }).on('click', () => showZoneDetail(z)).addTo(group);
@@ -309,11 +288,12 @@ const ExploreLayers = (() => {
     group.clearLayers();
 
     const combinedStats = buildStats(_zonesData.map(z => toNumber(z.combined_risk_rounded, z.combined_risk)));
+    // Improved combined risk color bands
     const combinedBands = [
-      { max: 49, color: '#10b981' },
-      { max: 59, color: '#60a5fa' },
-      { max: 69, color: '#f59e0b' },
-      { max: 100, color: '#ef4444' },
+      { max: 45, color: '#10b981' },   // Emerald - safe
+      { max: 55, color: '#84cc16' },   // Lime - caution
+      { max: 70, color: '#f59e0b' },   // Amber - elevated
+      { max: 100, color: '#ef4444' },  // Red - danger
     ];
 
     _zonesData.forEach(z => {
@@ -321,35 +301,26 @@ const ExploreLayers = (() => {
       const riskDisplay = toNumber(z.combined_risk_rounded, Math.round(risk));
       const unit = unitScale(riskDisplay, combinedStats.min, combinedStats.max);
       const color = colorByBand(riskDisplay, combinedBands, '#ef4444');
-      const radius = radiusFromUnit(unit, 190, 420);
+      const borderColor = color;
 
-      addBoundaryPolygon(group, z, {
-        color,
-        weight: 1.4,
-        fillColor: color,
-        fillOpacity: 0.14 + unit * 0.36,
-        opacity: 0.74,
-      });
-
-      // Main
       L.circle([z.lat, z.lng], {
-        radius,
-        color, fillColor: color,
-        fillOpacity: 0.14 + unit * 0.16,
+        radius: 450,
+        color: borderColor,
         weight: 1.5,
-        opacity: 0.54,
+        fillColor: color,
+        fillOpacity: 0.15 + unit * 0.15,
+        opacity: 0.85,
       }).on('click', () => showZoneDetail(z)).addTo(group);
 
-      // Combined score badge
-      if (unit >= 0.45) {
+      if (unit >= 0.4) {
         L.marker([z.lat, z.lng], {
           icon: L.divIcon({
-            html: `<div class="map-combined-marker" style="border-color:${color}; color:${color}">
+            html: `<div class="map-combined-marker" style="border-color:${color}; color:${color};font-weight:700">
               <span class="combined-score">${riskDisplay}</span>
               <span class="combined-label">risk</span>
             </div>`,
-            iconSize: [46, 30],
-            iconAnchor: [23, 15],
+            iconSize: [42, 28],
+            iconAnchor: [21, 14],
             className: '',
           }),
         }).on('click', () => showZoneDetail(z)).addTo(group);
@@ -364,7 +335,8 @@ const ExploreLayers = (() => {
 
     const usableSegments = _roadSegments.filter(seg => Array.isArray(seg.coords) && seg.coords.length >= 2);
     const roadRiskStats = buildStats(usableSegments.map(seg => seg.risk_score));
-    const roadPalette = ['#34d399', '#facc15', '#fb923c', '#ef4444'];
+    // Better road palette with more distinction
+    const roadPalette = ['#10b981', '#84cc16', '#f59e0b', '#ef4444'];
     const maxSegments = _map && _map.getZoom && _map.getZoom() >= 13 ? 1200 : 750;
     const prioritized = usableSegments
       .slice()
@@ -375,13 +347,15 @@ const ExploreLayers = (() => {
       const riskScore = toNumber(seg.risk_score, 0);
       const unit = unitScale(riskScore, roadRiskStats.min, roadRiskStats.max);
       const color = colorByQuantile(riskScore, roadRiskStats, roadPalette);
-      const weight = 1.5 + unit * 2;
+      const weight = 1.8 + unit * 2.2;
 
       L.polyline(seg.coords, {
         color,
         weight,
-        opacity: 0.2 + unit * 0.6,
+        opacity: 0.3 + unit * 0.55,
         dashArray: unit < 0.3 ? '5, 6' : null,
+        lineCap: 'round',
+        lineJoin: 'round',
       }).bindPopup(`
         <strong>${seg.name}</strong><br>
         Area ID: ${seg.ward_id}<br>
@@ -425,34 +399,34 @@ const ExploreLayers = (() => {
     const pills = [];
 
     if (has('risk')) {
-      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#34d399"></span>Low</span>');
-      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#fbbf24"></span>Medium</span>');
-      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#f87171"></span>High</span>');
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#10b981"></span>Low</span>');
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#f59e0b"></span>Medium</span>');
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#ef4444"></span>High</span>');
     }
 
     if (has('crime')) {
-      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#34d399"></span>Crime idx 0-24</span>');
-      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#fde047"></span>25-49</span>');
-      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#fb923c"></span>50-74</span>');
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#10b981"></span>Crime idx 0-24</span>');
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#84cc16"></span>25-49</span>');
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#f59e0b"></span>50-74</span>');
       pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#ef4444"></span>75-100</span>');
     }
 
     if (has('lights')) {
       pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#10b981"></span>Faulty ≤25%</span>');
       pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#84cc16"></span>≤45%</span>');
-      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#fbbf24"></span>≤60%</span>');
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#f59e0b"></span>≤60%</span>');
       pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#ef4444"></span>>60%</span>');
     }
 
     if (has('combined')) {
       pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#10b981"></span>Risk ≤49</span>');
-      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#60a5fa"></span>≤59</span>');
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#84cc16"></span>≤59</span>');
       pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#f59e0b"></span>≤69</span>');
       pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#ef4444"></span>>69</span>');
     }
 
     if (has('roads')) {
-      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#34d399"></span>Lower corridor risk</span>');
+      pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#10b981"></span>Lower corridor risk</span>');
       pills.push('<span class="layer-legend-pill"><span class="layer-legend-swatch" style="background:#ef4444"></span>Higher corridor risk</span>');
     }
 
@@ -533,7 +507,7 @@ const ExploreLayers = (() => {
     const faultyPct = z.total_lights > 0 ? Math.round((z.faulty_lights / z.total_lights) * 100) : 0;
     const workingPct = 100 - faultyPct;
     const lightStatus = faultyPct > 50 ? 'Critical' : faultyPct > 25 ? 'Degraded' : 'Good';
-    const lightStatusColor = faultyPct > 50 ? '#ef4444' : faultyPct > 25 ? '#fbbf24' : '#34d399';
+    const lightStatusColor = faultyPct > 50 ? '#ef4444' : faultyPct > 25 ? '#f59e0b' : '#10b981';
 
     content.innerHTML = `
       <div class="zd-header">
@@ -570,7 +544,7 @@ const ExploreLayers = (() => {
           </div>
         </div>
         <div class="zd-stat">
-          <div class="zd-stat-icon" style="background:rgba(251,191,36,0.12);color:#fbbf24">💡</div>
+          <div class="zd-stat-icon" style="background:rgba(245,158,11,0.12);color:#f59e0b">💡</div>
           <div class="zd-stat-content">
             <div class="zd-stat-value">${toNumber(z.faulty_lights_pct, faultyPct).toFixed(1)}<span class="zd-stat-unit">%</span></div>
             <div class="zd-stat-label">Faulty Lights</div>
@@ -584,7 +558,7 @@ const ExploreLayers = (() => {
           </div>
         </div>
         <div class="zd-stat">
-          <div class="zd-stat-icon" style="background:rgba(52,211,153,0.12);color:#34d399">🚗</div>
+          <div class="zd-stat-icon" style="background:rgba(16,185,129,0.12);color:#10b981">🚗</div>
           <div class="zd-stat-content">
             <div class="zd-stat-value">${Math.round(z.traffic * 100)}<span class="zd-stat-unit">%</span></div>
             <div class="zd-stat-label">Traffic Density</div>
@@ -601,7 +575,7 @@ const ExploreLayers = (() => {
           <div class="zd-light-bar-fill faulty" style="width:${faultyPct}%"></div>
         </div>
         <div class="zd-light-bar-labels">
-          <span style="color:#34d399">✓ ${z.working_lights} Working</span>
+          <span style="color:#10b981">✓ ${z.working_lights} Working</span>
           <span style="color:${lightStatusColor}">⚠ ${z.faulty_lights} Faulty (${faultyPct}%)</span>
         </div>
         <div class="zd-light-status" style="color:${lightStatusColor}">
@@ -620,7 +594,7 @@ const ExploreLayers = (() => {
         <div class="zd-attr-row">
           <span class="zd-attr-label">Lighting Level</span>
           <div class="zd-attr-bar-wrap">
-            <div class="zd-attr-bar" style="width:${Math.round(z.lighting * 100)}%; background:${z.lighting > 0.6 ? '#34d399' : z.lighting > 0.3 ? '#fbbf24' : '#ef4444'}"></div>
+            <div class="zd-attr-bar" style="width:${Math.round(z.lighting * 100)}%; background:${z.lighting > 0.6 ? '#10b981' : z.lighting > 0.3 ? '#f59e0b' : '#ef4444'}"></div>
           </div>
           <span class="zd-attr-val">${Math.round(z.lighting * 100)}%</span>
         </div>

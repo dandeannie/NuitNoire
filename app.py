@@ -41,7 +41,7 @@ ADMIN_PASS = 'nuitnoire2026'
 
 AREA_MAP = {'urban': 0, 'suburban': 1, 'rural': 2}
 RISK_LABELS = {0: 'Low', 1: 'Medium', 2: 'High'}
-ALLOWED_ISSUES = {'broken_light', 'suspicious_activity', 'unsafe_road', 'other'}
+ALLOWED_ISSUES = {'broken_light', 'suspicious_activity', 'unsafe_road', 'harassment', 'accident', 'theft', 'other'}
 ALLOWED_STATUSES = {'pending', 'investigating', 'resolved'}
 
 # Mumbai / Maharashtra risk zones — extended with transport & environmental data
@@ -856,10 +856,23 @@ def init_db():
         longitude REAL,
         issue_type TEXT NOT NULL,
         description TEXT,
+        severity TEXT DEFAULT 'low',
+        anonymous INTEGER DEFAULT 1,
         timestamp TEXT NOT NULL,
         status TEXT DEFAULT 'pending'
     )''')
     conn.commit()
+    # Add columns to existing DBs if missing
+    try:
+        conn.execute('ALTER TABLE reports ADD COLUMN severity TEXT DEFAULT "low"')
+        conn.commit()
+    except Exception:
+        pass
+    try:
+        conn.execute('ALTER TABLE reports ADD COLUMN anonymous INTEGER DEFAULT 1')
+        conn.commit()
+    except Exception:
+        pass
     conn.close()
 
 
@@ -955,6 +968,10 @@ def ward_intelligence():
 def report():
     return render_template('report.html')
 
+@app.route('/admin')
+def admin_page():
+    return render_template('admin.html')
+
 @app.route('/about')
 def about():
     return render_template('about.html')
@@ -979,7 +996,7 @@ def find_zone(name):
         if any(normalize_text(a) == normalize_text(query) for a in aliases):
             return z
 
-    return resolve_zone_input(zone_name=query, location_name=query)
+    return None
 
 
 def _min_max(values, default_min=0.0, default_max=1.0):
@@ -1478,19 +1495,24 @@ def api_report_incident():
     lng = data.get('longitude')
     issue = str(data.get('issue_type', '')).strip()
     desc = str(data.get('description', '')).strip()[:500]
+    severity = str(data.get('severity', 'low')).strip()
+    anonymous = 1 if data.get('anonymous', True) else 0
 
     if not location or not issue:
         return jsonify({'error': 'location and issue_type required'}), 400
     if issue not in ALLOWED_ISSUES:
         return jsonify({'error': 'Invalid issue_type'}), 400
+    if severity not in ('low', 'medium', 'high', 'critical'):
+        severity = 'low'
 
     db = get_db()
-    db.execute(
-        'INSERT INTO reports (location,latitude,longitude,issue_type,description,timestamp) VALUES (?,?,?,?,?,?)',
-        (location, lat, lng, issue, desc, datetime.now(timezone.utc).isoformat()),
+    cursor = db.execute(
+        'INSERT INTO reports (location,latitude,longitude,issue_type,description,severity,anonymous,timestamp) VALUES (?,?,?,?,?,?,?,?)',
+        (location, lat, lng, issue, desc, severity, anonymous, datetime.now(timezone.utc).isoformat()),
     )
     db.commit()
-    return jsonify({'ok': True, 'message': 'Incident reported'})
+    report_id = cursor.lastrowid
+    return jsonify({'ok': True, 'message': 'Incident reported', 'id': report_id})
 
 
 @app.route('/api/admin/reports')

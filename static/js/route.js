@@ -20,12 +20,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   const startZoneEl = document.getElementById('start-zone');
-  const destZoneEl  = document.getElementById('dest-zone');
-  const resultCard  = document.getElementById('route-result');
+  const destZoneEl = document.getElementById('dest-zone');
+  const resultCard = document.getElementById('route-result');
   const resultContent = document.getElementById('route-result-content');
-  const form        = document.getElementById('route-form');
-  const locateBtn   = document.getElementById('locate-btn');
-  const formCard    = document.getElementById('form-card');
+  const form = document.getElementById('route-form');
+  const locateBtn = document.getElementById('locate-btn');
+  const formCard = document.getElementById('form-card');
   const routePriorityEl = document.getElementById('route-priority');
   const voiceRouteBtn = document.getElementById('voice-route-btn');
   const voiceReadRouteBtn = document.getElementById('voice-read-route-btn');
@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let zonesList = [];
   let startMarker = null;
-  let destMarker  = null;
+  let destMarker = null;
   let latestAnalysis = null;
   let latestLocationSuggestions = [];
   let isCleanModeEnabled = false;
@@ -67,7 +67,13 @@ document.addEventListener('DOMContentLoaded', () => {
           const opt = document.createElement('option');
           opt.value = z.name;
           const dot = z.risk === 'high' ? '🔴' : z.risk === 'medium' ? '🟡' : '🟢';
-          const aliasHint = (z.aliases && z.aliases.length) ? ` - ${z.aliases[0]}` : '';
+          let aliasHint = '';
+          if (z.aliases && z.aliases.length > 0) {
+            const firstAlias = z.aliases[0];
+            if (firstAlias.toLowerCase() !== z.name.toLowerCase()) {
+              aliasHint = ` - ${firstAlias}`;
+            }
+          }
           opt.textContent = `${dot} ${z.name}${aliasHint}`;
           sel.appendChild(opt);
         });
@@ -491,7 +497,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!Array.isArray(alt.polyline) || alt.polyline.length < 2) return;
         const isFocused = idx === activeIdx;
         NuitMap.drawRoute(alt.polyline, {
-          color: alt.color || (idx === 0 ? '#34d399' : idx === 1 ? '#60a5fa' : '#f59e0b'),
+          color: alt.color || (idx === 0 ? '#10b981' : idx === 1 ? '#60a5fa' : '#f59e0b'),
           weight: isFocused ? 5 : 2.4,
           opacity: isFocused ? 0.98 : 0.22,
           dash: !isFocused ? '5, 7' : null,
@@ -509,8 +515,8 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    if (data.unsafe_route) NuitMap.drawRoute(data.unsafe_route, { color: '#f87171', dash: '10, 8', weight: 3, opacity: 0.5 });
-    if (data.safe_route) NuitMap.drawRoute(data.safe_route, { color: '#34d399', weight: 4.8, glow: true, animate: true });
+    if (data.unsafe_route) NuitMap.drawRoute(data.unsafe_route, { color: '#ef4444', dash: '10, 8', weight: 3, opacity: 0.5 });
+    if (data.safe_route) NuitMap.drawRoute(data.safe_route, { color: '#10b981', weight: 4.8, glow: true, animate: true });
     if (data.safe_route) NuitMap.fitBounds(data.safe_route);
     renderEndpointMarkers(data);
   }

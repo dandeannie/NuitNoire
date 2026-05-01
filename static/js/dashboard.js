@@ -163,6 +163,16 @@ const NuitI18n = (() => {
       accidents: 'Accidents',
       count: 'Count',
       risk_score_tooltip: 'Risk Score: {score}',
+
+      explore_where: 'Where are you going?', start_loc: 'Start Location', dest_loc: 'Destination Location',
+      choose_wards: 'or choose wards directly below', departure_time: 'Departure Time', route_priority: 'Route Priority',
+      check_route: 'Check My Route', voice_route: 'Voice Route', read_best: 'Read Best Route', clean_mode: 'Clean Mode', route_analysis: 'Route Analysis',
+      layer_risk: 'Overall Risk', layer_crime: 'Crime Index', layer_lights: 'Faulty Lights', layer_combined: 'Combined Risk', layer_roads: 'Road Corridors',
+      route_only: 'Route-Only', analytics_view: 'Analytics View',
+
+      ward_title: 'Ward Intelligence Center', ward_subtitle: 'Interactive ward drilldown with time-based risk trends.',
+      voice_select: 'Voice Select', refresh_data: 'Refresh Data', ward_map_title: 'Ward Map + Risky Corridors',
+      top_risky: 'Top Risky Roads', hourly_crime: 'Hourly Crime Trend', monthly_crime: 'Monthly Crime vs Accidents',
     },
     hi: {
       lang_name_en: 'अंग्रेजी', lang_name_hi: 'हिंदी', lang_name_mr: 'मराठी', lang_name_hinglish: 'हिंग्लिश',
@@ -194,7 +204,17 @@ const NuitI18n = (() => {
       feature_lighting: 'रोशनी', feature_traffic: 'ट्रैफिक', feature_history: 'इतिहास', feature_time: 'समय', risk_label: '{level} जोखिम',
       kpi_total_zones: 'मॉनिटर किए गए कुल ज़ोन', kpi_high_risk: 'उच्च जोखिम ज़ोन', kpi_avg_score: 'औसत जोखिम स्कोर', kpi_peak_hour: 'सबसे खतरनाक समय',
       kpi_safest: 'सबसे सुरक्षित ज़ोन', kpi_dangerous: 'सबसे खतरनाक', highest_incident_rate: 'सबसे अधिक घटनाएं', lowest_risk_score: 'सबसे कम जोखिम स्कोर', highest_risk_score: 'सबसे अधिक जोखिम स्कोर',
-      incidents: 'घटनाएं', accidents: 'दुर्घटनाएं', count: 'गिनती', risk_score_tooltip: 'रिस्क स्कोर: {score}',
+      count: 'गिनती', risk_score_tooltip: 'रिस्क स्कोर: {score}',
+
+      explore_where: 'आप कहाँ जा रहे हैं?', start_loc: 'शुरुआती स्थान', dest_loc: 'गंतव्य स्थान',
+      choose_wards: 'या नीचे वार्ड चुनें', departure_time: 'प्रस्थान का समय', route_priority: 'मार्ग प्राथमिकता',
+      check_route: 'मेरा रूट चेक करें', voice_route: 'वॉयस रूट', read_best: 'बेस्ट रूट पढ़ें', clean_mode: 'क्लीन मोड', route_analysis: 'रूट विश्लेषण',
+      layer_risk: 'कुल रिस्क', layer_crime: 'क्राइम इंडेक्स', layer_lights: 'खराब लाइट', layer_combined: 'संयुक्त रिस्क', layer_roads: 'सड़कें',
+      route_only: 'केवल रूट', analytics_view: 'एनालिटिक्स देखें',
+
+      ward_title: 'वार्ड इंटेलिजेंस सेंटर', ward_subtitle: 'समय आधारित रिस्क और हॉटस्पॉट के साथ इंटरएक्टिव वार्ड ड्रिलडाउन।',
+      voice_select: 'वॉयस सिलेक्ट', refresh_data: 'डेटा रिफ्रेश करें', ward_map_title: 'वार्ड मैप और जोखिम भरे कॉरिडोर',
+      top_risky: 'सबसे जोखिम भरी सड़कें', hourly_crime: 'प्रति घंटा अपराध', monthly_crime: 'मासिक अपराध और दुर्घटनाएं',
     },
     mr: {
       lang_name_en: 'इंग्रजी', lang_name_hi: 'हिंदी', lang_name_mr: 'मराठी', lang_name_hinglish: 'हिंग्लिश',
@@ -222,6 +242,16 @@ const NuitI18n = (() => {
       feature_lighting: 'प्रकाश', feature_traffic: 'वाहतूक', feature_history: 'इतिहास', feature_time: 'वेळ', risk_label: '{level} जोखीम',
       kpi_total_zones: 'निरीक्षणाखालील एकूण क्षेत्रे', kpi_high_risk: 'उच्च जोखीम क्षेत्रे', kpi_avg_score: 'सरासरी जोखीम गुण', kpi_peak_hour: 'सर्वाधिक धोकादायक वेळ', kpi_safest: 'सर्वात सुरक्षित क्षेत्र', kpi_dangerous: 'सर्वात धोकादायक',
       highest_incident_rate: 'सर्वाधिक घटना दर', lowest_risk_score: 'सर्वात कमी जोखीम गुण', highest_risk_score: 'सर्वाधिक जोखीम गुण', incidents: 'घटना', accidents: 'अपघात', count: 'संख्या', risk_score_tooltip: 'जोखीम गुण: {score}',
+
+      explore_where: 'तुम्ही कुठे जात आहात?', start_loc: 'सुरुवातीचे ठिकाण', dest_loc: 'पोहोचण्याचे ठिकाण',
+      choose_wards: 'किंवा खाली वॉर्ड निवडा', departure_time: 'निघण्याची वेळ', route_priority: 'मार्ग प्राधान्य',
+      check_route: 'माझा मार्ग तपासा', voice_route: 'व्हॉइस मार्ग', read_best: 'सर्वोत्तम मार्ग वाचा', clean_mode: 'क्लीन मोड', route_analysis: 'मार्ग विश्लेषण',
+      layer_risk: 'एकूण जोखीम', layer_crime: 'गुन्हेगारी निर्देशांक', layer_lights: 'खराब दिवे', layer_combined: 'संयुक्त जोखीम', layer_roads: 'रस्ते',
+      route_only: 'फक्त मार्ग', analytics_view: 'विश्लेषण दृश्य',
+
+      ward_title: 'वॉर्ड इंटेलिजन्स सेंटर', ward_subtitle: 'वेळेवर आधारित जोखीम आणि हॉटस्पॉटसह इंटरएक्टिव्ह वॉर्ड ड्रिलडाउन.',
+      voice_select: 'व्हॉइस निवड', refresh_data: 'डेटा रिफ्रेश करा', ward_map_title: 'वॉर्ड नकाशा आणि धोकादायक रस्ते',
+      top_risky: 'सर्वात धोकादायक रस्ते', hourly_crime: 'तासानुसार गुन्हेगारी', monthly_crime: 'मासिक गुन्हे आणि अपघात',
     },
     hinglish: {
       lang_name_en: 'English', lang_name_hi: 'Hindi', lang_name_mr: 'Marathi', lang_name_hinglish: 'Hinglish',
@@ -252,6 +282,16 @@ const NuitI18n = (() => {
       kpi_total_zones: 'Total Zones Monitored', kpi_high_risk: 'High Risk Zones', kpi_avg_score: 'Avg Risk Score', kpi_peak_hour: 'Peak Danger Hour',
       kpi_safest: 'Safest Zone', kpi_dangerous: 'Most Dangerous', highest_incident_rate: 'Highest incident rate', lowest_risk_score: 'Lowest risk score', highest_risk_score: 'Highest risk score',
       incidents: 'Incidents', accidents: 'Accidents', count: 'Count', risk_score_tooltip: 'Risk Score: {score}',
+
+      explore_where: 'Kahan jaana hai?', start_loc: 'Start Location', dest_loc: 'Destination Location',
+      choose_wards: 'ya neeche wards choose karo', departure_time: 'Departure Time', route_priority: 'Route Priority',
+      check_route: 'Mera Route Check Karo', voice_route: 'Voice Route', read_best: 'Best Route Padhke Sunao', clean_mode: 'Clean Mode', route_analysis: 'Route Analysis',
+      layer_risk: 'Overall Risk', layer_crime: 'Crime Index', layer_lights: 'Faulty Lights', layer_combined: 'Combined Risk', layer_roads: 'Road Corridors',
+      route_only: 'Route-Only', analytics_view: 'Analytics View',
+
+      ward_title: 'Ward Intelligence Center', ward_subtitle: 'Time-based risk aur hotspots ke saath interactive ward drilldown.',
+      voice_select: 'Voice se select karo', refresh_data: 'Data Refresh karo', ward_map_title: 'Ward Map + Risky Corridors',
+      top_risky: 'Top Risky Roads', hourly_crime: 'Hourly Crime Trend', monthly_crime: 'Monthly Crime vs Accidents',
     },
   };
 
@@ -308,7 +348,12 @@ const NuitI18n = (() => {
       setText('.section-header h1', t('predict_title'));
       setText('.section-header p', t('predict_subtitle'));
       setText('#zone-picker-group .form-label', t('neighborhood'));
-      setText('label[for="p-time"]', t('time_of_day'));
+      // Time of day label — find via parent of #p-time input
+      const pTimeInput = document.getElementById('p-time');
+      if (pTimeInput) {
+        const timeLabel = pTimeInput.closest('.form-group')?.querySelector('.form-label');
+        if (timeLabel) timeLabel.textContent = t('time_of_day');
+      }
       setText('#p-locate-btn', t('use_my_location'));
       setText('.advanced-toggle summary', t('tune_optional'));
       const labels = document.querySelectorAll('#predict-form .form-label');
@@ -400,6 +445,89 @@ const NuitI18n = (() => {
       setText('.section-header h1', t('about_title'));
       setText('.section-header p', t('about_subtitle'));
     }
+
+    if (page === 'explore') {
+      // Helper: update only text nodes inside an element (preserves SVG/span children)
+      function setTextNodes(el, text) {
+        if (!el) return;
+        let found = false;
+        el.childNodes.forEach(n => {
+          if (n.nodeType === Node.TEXT_NODE && n.textContent.trim()) {
+            n.textContent = ` ${text} `;
+            found = true;
+          }
+        });
+        if (!found) el.appendChild(document.createTextNode(` ${text} `));
+      }
+
+      // Helper: find label by sibling input/select ID
+      function setLabelByInputId(inputId, key) {
+        const input = document.getElementById(inputId);
+        if (input) {
+          const label = input.closest('.form-group')?.querySelector('.form-label');
+          if (label) label.textContent = t(key);
+        }
+      }
+
+      // Card title (has SVGs around the text)
+      const formCardTitle = document.querySelector('#form-card .card-title');
+      if (formCardTitle) setTextNodes(formCardTitle, t('explore_where'));
+
+      // Form labels via input IDs
+      setLabelByInputId('start-location', 'start_loc');
+      setLabelByInputId('dest-location', 'dest_loc');
+      setLabelByInputId('start-zone', 'neighborhood');
+      setLabelByInputId('dest-zone', 'dest_loc');
+      setLabelByInputId('travel-time', 'departure_time');
+      setLabelByInputId('route-priority', 'route_priority');
+
+      setText('.route-divider-note', t('choose_wards'));
+
+      // Submit button (has SVG child)
+      const submitBtn = document.querySelector('#route-form button[type="submit"]');
+      if (submitBtn) setTextNodes(submitBtn, t('check_route'));
+
+      setText('#voice-route-btn', t('voice_route'));
+      setText('#voice-read-route-btn', t('read_best'));
+
+      // Clean mode button (text node with On/Off)
+      const cm = document.getElementById('clean-mode-btn');
+      if (cm) {
+        cm.childNodes.forEach(n => {
+          if (n.nodeType === Node.TEXT_NODE && n.textContent.trim()) {
+            const isOn = n.textContent.includes('On');
+            n.textContent = ` ${t('clean_mode')}: ${isOn ? 'On' : 'Off'} `;
+          }
+        });
+      }
+
+      setText('#preset-route-only-btn', t('route_only'));
+      setText('#preset-analytics-view-btn', t('analytics_view'));
+
+      // Route analysis card title (has SVGs)
+      const raTitle = document.querySelector('#route-result .card-title');
+      if (raTitle) setTextNodes(raTitle, t('route_analysis'));
+
+      // Layer buttons — preserve the colored dot spans
+      const layerIds = ['layer-risk-btn', 'layer-crime-btn', 'layer-lights-btn', 'layer-combined-btn', 'layer-roads-btn'];
+      const layerKeys = ['layer_risk', 'layer_crime', 'layer_lights', 'layer_combined', 'layer_roads'];
+      layerIds.forEach((id, i) => {
+        const btn = document.getElementById(id);
+        if (btn) setTextNodes(btn, t(layerKeys[i]));
+      });
+    }
+
+    if (page === 'ward-intelligence') {
+      setText('.ward-hero h1', t('ward_title'));
+      setText('.ward-hero p', t('ward_subtitle'));
+      setText('#ward-voice-btn', t('voice_select'));
+      setText('#ward-refresh-btn', t('refresh_data'));
+      setText('.ward-map-card .card-title', t('ward_map_title'));
+      setText('.ward-table-card .card-title', t('top_risky'));
+      const charts = document.querySelectorAll('.ward-chart-grid .card-title');
+      if (charts[0]) charts[0].textContent = t('hourly_crime');
+      if (charts[1]) charts[1].textContent = t('monthly_crime');
+    }
   }
 
   function initSelector() {
@@ -441,9 +569,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initSliders();
 
   const page = document.body.dataset.page;
-  if (page === 'home')      initHome();
-  if (page === 'predict')   initPredict();
-  if (page === 'report')    initReport();
+  if (page === 'home') initHome();
+  if (page === 'predict') initPredict();
+  if (page === 'report') initReport();
   if (page === 'analytics') initAnalytics();
 });
 
@@ -689,11 +817,11 @@ const analyticsState = {
 };
 
 function initPredict() {
-  const zoneSel   = document.getElementById('p-zone');
-  const timeSl    = document.getElementById('p-time');
+  const zoneSel = document.getElementById('p-zone');
+  const timeSl = document.getElementById('p-time');
   const resultBox = document.getElementById('predict-result-box');
-  const locBtn    = document.getElementById('p-locate-btn');
-  const advForm   = document.getElementById('predict-form');
+  const locBtn = document.getElementById('p-locate-btn');
+  const advForm = document.getElementById('predict-form');
   if (!zoneSel || !resultBox) return;
 
   // 1) Load zones into dropdown
@@ -794,12 +922,12 @@ function initPredict() {
     if (!zone) return;
     const lightEl = document.getElementById('p-lighting');
     const traffEl = document.getElementById('p-traffic');
-    const histEl  = document.getElementById('p-history');
-    const areaEl  = document.getElementById('p-area');
+    const histEl = document.getElementById('p-history');
+    const areaEl = document.getElementById('p-area');
     if (lightEl && zone.lighting !== undefined) { lightEl.value = zone.lighting; document.getElementById('p-lighting-val').textContent = zone.lighting; }
-    if (traffEl && zone.traffic !== undefined)  { traffEl.value = zone.traffic;  document.getElementById('p-traffic-val').textContent = zone.traffic; }
-    if (histEl && zone.accidents !== undefined)  { histEl.value = zone.accidents; }
-    if (areaEl && zone.area)                     { areaEl.value = zone.area; }
+    if (traffEl && zone.traffic !== undefined) { traffEl.value = zone.traffic; document.getElementById('p-traffic-val').textContent = zone.traffic; }
+    if (histEl && zone.accidents !== undefined) { histEl.value = zone.accidents; }
+    if (areaEl && zone.area) { areaEl.value = zone.area; }
   }
 }
 
@@ -814,7 +942,7 @@ function findNearestPredictZone(lat, lng) {
 
 async function doZonePredict(container) {
   const zoneSel = document.getElementById('p-zone');
-  const timeEl  = document.getElementById('p-time');
+  const timeEl = document.getElementById('p-time');
   if (!zoneSel || !zoneSel.value) return;
   const selectedOpt = zoneSel.options[zoneSel.selectedIndex];
   const zoneLabel = selectedOpt ? (selectedOpt.dataset.display || selectedOpt.textContent.replace(/^[🔴🟡🟢]\s*/, '')) : zoneSel.value;
@@ -862,7 +990,7 @@ async function doPredict(container) {
 
 function renderGaugeResult(data, container, zoneName) {
   const lvl = data.risk_level.toLowerCase();
-  const colors = { low: '#34d399', medium: '#fbbf24', high: '#f87171' };
+  const colors = { low: '#10b981', medium: '#f59e0b', high: '#ef4444' };
   const color = colors[lvl] || '#818cf8';
 
   const zoneLabel = zoneName ? `<div class="gauge-zone-name">📍 ${Nuit.escapeHtml(zoneName)}</div>` : '';
@@ -969,16 +1097,26 @@ function initReport() {
     form.addEventListener('submit', async e => {
       e.preventDefault();
       const btn = form.querySelector('button[type="submit"]');
+      const origHTML = btn.innerHTML;
       btn.disabled = true;
       btn.innerHTML = '<span class="btn-spinner"></span> Submitting...';
 
       const payload = {
-        location: document.getElementById('r-location').value.trim(),
-        latitude: parseFloat(document.getElementById('r-lat').value) || null,
-        longitude: parseFloat(document.getElementById('r-lng').value) || null,
-        issue_type: document.getElementById('r-issue').value,
-        description: document.getElementById('r-desc').value.trim(),
+        location: (document.getElementById('r-location')?.value || '').trim(),
+        latitude: parseFloat(document.getElementById('r-lat')?.value) || null,
+        longitude: parseFloat(document.getElementById('r-lng')?.value) || null,
+        issue_type: document.getElementById('r-issue')?.value || '',
+        description: (document.getElementById('r-desc')?.value || '').trim(),
+        severity: document.getElementById('r-severity')?.value || 'low',
+        anonymous: document.getElementById('r-anonymous')?.checked ?? true,
       };
+
+      if (!payload.location || !payload.issue_type) {
+        Nuit.toast('Please fill in location and issue type', 'error');
+        btn.disabled = false;
+        btn.innerHTML = origHTML;
+        return;
+      }
 
       try {
         const res = await fetch('/api/report-incident', {
@@ -990,12 +1128,9 @@ function initReport() {
         if (data.ok) {
           form.style.display = 'none';
           if (successEl) successEl.classList.add('visible');
+          const idDisplay = document.getElementById('report-id-display');
+          if (idDisplay && data.id) idDisplay.textContent = `#${data.id}`;
           Nuit.toast('Incident reported successfully!', 'success');
-          setTimeout(() => {
-            form.reset();
-            form.style.display = '';
-            if (successEl) successEl.classList.remove('visible');
-          }, 4000);
         } else {
           Nuit.toast(data.error || 'Submission failed', 'error');
         }
@@ -1003,7 +1138,7 @@ function initReport() {
         Nuit.toast('Network error — try again', 'error');
       } finally {
         btn.disabled = false;
-        btn.innerHTML = 'Submit Report';
+        btn.innerHTML = origHTML;
       }
     });
   }
@@ -1425,8 +1560,8 @@ function drawSparkline(canvasId, data, colorName) {
   const step = w / (data.length - 1);
 
   const colors = {
-    accent: '#818cf8', danger: '#f87171', warning: '#fbbf24',
-    success: '#34d399',
+    accent: '#818cf8', danger: '#ef4444', warning: '#f59e0b',
+    success: '#10b981',
   };
   const color = colors[colorName] || '#818cf8';
 
@@ -1479,7 +1614,7 @@ function buildRiskDonut(d, kpis) {
       labels: d.labels,
       datasets: [{
         data: d.values,
-        backgroundColor: ['#f87171', '#fbbf24', '#34d399'],
+        backgroundColor: ['#ef4444', '#f59e0b', '#10b981'],
         borderWidth: 0, spacing: 3, borderRadius: 3,
         hoverOffset: 8,
       }],
@@ -1490,7 +1625,7 @@ function buildRiskDonut(d, kpis) {
   // Legend
   const legend = document.getElementById('risk-donut-legend');
   if (legend) {
-    const colors = ['#f87171', '#fbbf24', '#34d399'];
+    const colors = ['#ef4444', '#f59e0b', '#10b981'];
     const pct = d.values.map(v => Math.round(v / kpis.total_zones * 100));
     legend.innerHTML = d.labels.map((l, i) =>
       `<div class="donut-legend-item">
@@ -1509,7 +1644,7 @@ function buildLightingDonut(d, kpis) {
   const prev = Chart.getChart(ctx);
   if (prev) prev.destroy();
 
-  const colors = ['#ef4444', '#f97316', '#fbbf24', '#34d399', '#22d3ee'];
+  const colors = ['#ef4444', '#f59e0b', '#84cc16', '#10b981', '#22d3ee'];
 
   new Chart(ctx, {
     type: 'doughnut',
@@ -1562,14 +1697,14 @@ function buildZonesHorizontalBar(d) {
   if (prev) prev.destroy();
 
   const bgColors = d.risks.map(r =>
-    r === 'high' ? 'rgba(248,113,113,0.7)' :
-    r === 'medium' ? 'rgba(251,191,36,0.7)' :
-    'rgba(52,211,153,0.7)'
+    r === 'high' ? 'rgba(239,68,68,0.7)' :
+      r === 'medium' ? 'rgba(245,158,11,0.7)' :
+        'rgba(16,185,129,0.7)'
   );
   const borderColors = d.risks.map(r =>
-    r === 'high' ? '#f87171' :
-    r === 'medium' ? '#fbbf24' :
-    '#34d399'
+    r === 'high' ? '#ef4444' :
+      r === 'medium' ? '#f59e0b' :
+        '#10b981'
   );
 
   new Chart(ctx, {
@@ -1701,7 +1836,7 @@ function buildAreaChart(d) {
       labels: d.labels,
       datasets: [{
         data: d.high,
-        backgroundColor: ['#f87171', '#fbbf24', '#34d399'],
+        backgroundColor: ['#ef4444', '#f59e0b', '#10b981'],
         borderWidth: 0, spacing: 4, borderRadius: 4,
       }],
     },
@@ -1728,9 +1863,9 @@ function buildCrimeLightingCorrelation(d) {
   // Create scatter plot data points
   const dataPoints = [];
   d.labels.forEach((label, i) => {
-    const color = d.colors[i] === 'high' ? '#f87171' : 
-                  d.colors[i] === 'medium' ? '#fbbf24' : 
-                  '#34d399';
+    const color = d.colors[i] === 'high' ? '#ef4444' :
+      d.colors[i] === 'medium' ? '#f59e0b' :
+        '#10b981';
     dataPoints.push({
       x: parseFloat(d.lighting[i]),
       y: d.risk_scores[i],
@@ -1751,8 +1886,8 @@ function buildCrimeLightingCorrelation(d) {
         {
           label: 'High Risk Zones',
           data: highRiskData.map(p => ({ x: p.x, y: p.y })),
-          backgroundColor: 'rgba(248, 113, 113, 0.6)',
-          borderColor: '#f87171',
+          backgroundColor: 'rgba(239, 68, 68, 0.6)',
+          borderColor: '#ef4444',
           borderWidth: 2,
           radius: 6,
           hoverRadius: 9,
@@ -1760,8 +1895,8 @@ function buildCrimeLightingCorrelation(d) {
         {
           label: 'Medium Risk Zones',
           data: mediumRiskData.map(p => ({ x: p.x, y: p.y })),
-          backgroundColor: 'rgba(251, 191, 36, 0.6)',
-          borderColor: '#fbbf24',
+          backgroundColor: 'rgba(245, 158, 11, 0.6)',
+          borderColor: '#f59e0b',
           borderWidth: 2,
           radius: 6,
           hoverRadius: 9,
@@ -1769,8 +1904,8 @@ function buildCrimeLightingCorrelation(d) {
         {
           label: 'Low Risk Zones',
           data: lowRiskData.map(p => ({ x: p.x, y: p.y })),
-          backgroundColor: 'rgba(52, 211, 153, 0.6)',
-          borderColor: '#34d399',
+          backgroundColor: 'rgba(16, 185, 129, 0.6)',
+          borderColor: '#10b981',
           borderWidth: 2,
           radius: 6,
           hoverRadius: 9,
@@ -1791,7 +1926,7 @@ function buildCrimeLightingCorrelation(d) {
           padding: 10,
           cornerRadius: 8,
           callbacks: {
-            label: function(ctx) {
+            label: function (ctx) {
               const pointIndex = dataPoints.findIndex(p => p.x === ctx.raw.x && p.y === ctx.raw.y);
               if (pointIndex !== -1) {
                 return `${dataPoints[pointIndex].label}: Lighting ${ctx.raw.x.toFixed(2)}, Risk ${ctx.raw.y}`;
@@ -1878,7 +2013,7 @@ function buildLightingCrimeOverlap(d) {
       datasets: [{
         data: values,
         backgroundColor: colors,
-        borderColor: ['#f87171', '#fbbf24', '#a78bfa', '#f97316', '#fcd34d', '#6ee7b7'],
+        borderColor: ['#ef4444', '#f59e0b', '#a78bfa', '#f97316', '#fcd34d', '#6ee7b7'],
         borderWidth: 2,
         borderRadius: 6,
         borderSkipped: false,
@@ -1904,7 +2039,7 @@ function buildLightingCrimeOverlap(d) {
                 [],
                 [],
               ];
-              const zoneName = zones[ctx.dataIndex] && zones[ctx.dataIndex].length > 0 
+              const zoneName = zones[ctx.dataIndex] && zones[ctx.dataIndex].length > 0
                 ? `Zone${zones[ctx.dataIndex].length > 1 ? 's' : ''}: ${zones[ctx.dataIndex].join(', ')}`
                 : '';
               return `Count: ${ctx.raw}${zoneName ? ' • ' + zoneName : ''}`;
@@ -1965,16 +2100,14 @@ function buildZoneRankings(zones) {
   container.innerHTML = `<div class="zone-rank-list">${sorted.map((z, i) => `
     <div class="zone-rank-row">
       <span class="zone-rank-num">${i + 1}</span>
-      <span class="zone-rank-dot" style="background:${
-        z.risk === 'high' ? '#f87171' : z.risk === 'medium' ? '#fbbf24' : '#34d399'
-      }"></span>
+      <span class="zone-rank-dot" style="background:${z.risk === 'high' ? '#ef4444' : z.risk === 'medium' ? '#f59e0b' : '#10b981'
+    }"></span>
       <span class="zone-rank-name">${z.name}</span>
       <div class="zone-rank-bar-track">
         <div class="zone-rank-bar-fill ${z.risk}" style="width:${z.score}%"></div>
       </div>
-      <span class="zone-rank-score" style="color:${
-        z.risk === 'high' ? '#f87171' : z.risk === 'medium' ? '#fbbf24' : '#34d399'
-      }">${z.score}</span>
+      <span class="zone-rank-score" style="color:${z.risk === 'high' ? '#ef4444' : z.risk === 'medium' ? '#f59e0b' : '#10b981'
+    }">${z.score}</span>
     </div>
   `).join('')}</div>`;
 }
@@ -2006,8 +2139,7 @@ function initAnalyticsMap(zones) {
   window._analyticsMap = map;
 
   zones.forEach(z => {
-    const color = z.risk === 'high' ? '#f87171' : z.risk === 'medium' ? '#fbbf24' : '#34d399';
-    const radius = z.risk === 'high' ? 900 : z.risk === 'medium' ? 700 : 500;
+    const color = z.risk === 'high' ? '#ef4444' : z.risk === 'medium' ? '#f59e0b' : '#10b981';
 
     if (z.boundary && z.boundary.type === 'Polygon' && Array.isArray(z.boundary.coordinates)) {
       const ring = z.boundary.coordinates[0] || [];
@@ -2018,20 +2150,20 @@ function initAnalyticsMap(zones) {
         L.polygon(latlngs, {
           color: color,
           fillColor: color,
-          fillOpacity: 0.16,
-          weight: 1.2,
-          opacity: 0.55,
+          fillOpacity: 0.14,
+          weight: 1.5,
+          opacity: 0.8,
         }).addTo(map).bindPopup(`<strong>${z.name}</strong><br>Risk: ${z.score}/100`);
       }
     }
 
-    L.circle([z.lat, z.lng], {
-      radius: radius,
+    // Simple center marker
+    L.circleMarker([z.lat, z.lng], {
+      radius: z.risk === 'high' ? 4 : 2.5,
       color: color,
       fillColor: color,
-      fillOpacity: 0.25,
+      fillOpacity: 0.95,
       weight: 1.5,
-      opacity: 0.6,
     }).addTo(map).bindPopup(`<strong>${z.name}</strong><br>Risk: ${z.score}/100`);
   });
 }

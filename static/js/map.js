@@ -10,7 +10,17 @@ const NuitMap = (() => {
   const TILE_LIGHT = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
   const ATTR = '&copy; <a href="https://carto.com/">CARTO</a>';
 
-  const RISK_COLORS = { low: '#34d399', medium: '#fbbf24', high: '#f87171' };
+  // Enhanced color palette: more saturated, better visual separation
+  const RISK_COLORS = { 
+    low: '#10b981',      // Emerald green - more saturated
+    medium: '#f59e0b',   // Amber/orange - more distinct from red
+    high: '#ef4444'      // Bright red - more vibrant
+  };
+  const RISK_COLORS_BORDER = {
+    low: '#059669',      // Darker emerald for borders
+    medium: '#d97706',   // Darker amber for borders
+    high: '#dc2626'      // Darker red for borders
+  };
   const RISK_RADII  = { low: 420, medium: 520, high: 650 };
 
   let _map = null;
@@ -62,9 +72,11 @@ const NuitMap = (() => {
 
       data.zones.forEach(z => {
         const color = RISK_COLORS[z.risk] || '#94a3b8';
+        const borderColor = RISK_COLORS_BORDER[z.risk] || '#64748b';
         const radius = RISK_RADII[z.risk] || 400;
+        const isHighRisk = z.risk === 'high';
 
-        // If ward boundary geometry is available, draw the polygon first.
+        // If ward boundary geometry is available, draw the polygon
         if (z.boundary && z.boundary.type === 'Polygon' && Array.isArray(z.boundary.coordinates)) {
           const ring = z.boundary.coordinates[0] || [];
           const latlngs = ring
@@ -72,37 +84,41 @@ const NuitMap = (() => {
             .map(pt => [pt[1], pt[0]]);
           if (latlngs.length > 2) {
             const poly = L.polygon(latlngs, {
-              color,
-              weight: 1.5,
+              color: borderColor,
+              weight: isHighRisk ? 2.5 : 1.8,
               fillColor: color,
-              fillOpacity: 0.18,
-              opacity: 0.6,
+              fillOpacity: isHighRisk ? 0.15 : 0.08,
+              opacity: 0.85,
+              lineCap: 'round',
+              lineJoin: 'round',
+              dashArray: null,
             });
             poly.bindPopup(zonePopup(z, color));
             poly.addTo(_layers.zones);
           }
+        } else {
+          // Fallback to circle representation only if no boundary
+          const circle = L.circle([z.lat, z.lng], {
+            radius,
+            color: borderColor,
+            fillColor: color,
+            fillOpacity: isHighRisk ? 0.15 : 0.08,
+            weight: isHighRisk ? 2.5 : 1.8,
+            opacity: 0.85,
+            lineCap: 'round',
+            lineJoin: 'round',
+          });
+          circle.bindPopup(zonePopup(z, color));
+          circle.addTo(_layers.zones);
         }
 
-        // Outer glow
-        L.circle([z.lat, z.lng], {
-          radius: radius + 100,
-          color: 'transparent', fillColor: color,
-          fillOpacity: 0.06, weight: 0,
-        }).addTo(_layers.zones);
-
-        // Main circle
-        const circle = L.circle([z.lat, z.lng], {
-          radius,
-          color, fillColor: color,
-          fillOpacity: 0.15, weight: 1.5, opacity: 0.5,
-        });
-        circle.bindPopup(zonePopup(z, color));
-        circle.addTo(_layers.zones);
-
-        // Center dot
+        // Simple center marker - minimal visual clutter
         L.circleMarker([z.lat, z.lng], {
-          radius: 3, color, fillColor: color,
-          fillOpacity: 0.8, weight: 0,
+          radius: isHighRisk ? 4 : 2.5, 
+          color: borderColor,
+          fillColor: color,
+          fillOpacity: 0.95,
+          weight: 1.5,
         }).addTo(_layers.zones);
       });
       return data.zones;
@@ -113,18 +129,21 @@ const NuitMap = (() => {
   }
 
   function zonePopup(z, color) {
-    return `<div style="font-family:Inter,sans-serif;font-size:13px;min-width:160px;color:#1e293b">
-      <div style="font-weight:700;margin-bottom:4px">${z.name}</div>
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-        <span style="width:8px;height:8px;border-radius:50%;background:${color}"></span>
-        <span style="font-weight:600;color:${color}">${z.risk.toUpperCase()} RISK</span>
+    const riskMap = { low: 'LOW', medium: 'MEDIUM', high: 'HIGH' };
+    const riskLevel = riskMap[z.risk] || 'UNKNOWN';
+    return `<div style="font-family:Inter,sans-serif;font-size:13px;min-width:180px;color:#1e293b">
+      <div style="font-weight:700;margin-bottom:6px;font-size:14px">${z.name}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:6px;background:rgba(0,0,0,0.04);border-radius:6px">
+        <span style="width:10px;height:10px;border-radius:50%;background:${color};box-shadow:0 0 8px ${color}66"></span>
+        <span style="font-weight:700;color:${color}">${riskLevel} RISK</span>
       </div>
-      <div style="font-size:12px;color:#64748b">
-        Score: <strong style="color:#334155">${z.score}</strong>/100
+      <div style="font-size:12px;color:#64748b;margin-bottom:6px">
+        Safety Score: <strong style="color:${color};font-size:13px">${z.score}</strong>/100
       </div>
-      <div style="margin-top:6px;height:4px;background:rgba(0,0,0,0.08);border-radius:2px;overflow:hidden">
-        <div style="width:${z.score}%;height:100%;background:${color};border-radius:2px"></div>
+      <div style="margin:8px 0;height:6px;background:rgba(0,0,0,0.1);border-radius:3px;overflow:hidden;box-shadow:inset 0 1px 2px rgba(0,0,0,0.05)">
+        <div style="width:${z.score}%;height:100%;background:linear-gradient(90deg, ${color}, ${color}dd);border-radius:3px;transition:width 0.3s ease"></div>
       </div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:4px">Click zone for details</div>
     </div>`;
   }
 

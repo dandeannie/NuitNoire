@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function riskColor(level) {
     if (level === 'high') return '#ef4444';
     if (level === 'medium') return '#f59e0b';
-    return '#34d399';
+    return '#10b981';
   }
 
   function normalizeSpeech(text) {
@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     (segments || []).slice(0, 140).forEach((s) => {
       if (!Array.isArray(s.coords) || s.coords.length < 2) return;
-      const segColor = s.risk_level === 'high' ? '#ef4444' : s.risk_level === 'medium' ? '#f59e0b' : '#34d399';
+      const segColor = s.risk_level === 'high' ? '#ef4444' : s.risk_level === 'medium' ? '#f59e0b' : '#10b981';
       L.polyline(s.coords || [], {
         color: segColor,
         weight: s.risk_level === 'high' ? 3.2 : 2.2,
